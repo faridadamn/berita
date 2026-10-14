@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #08090b;
+  --color-panel: #0f1114;
+  --color-panel-2: #14171b;
+  --color-line: #1e2127;
+  --color-line-2: #2a2e36;
+  --color-fg: #eceef1;
+  --color-muted: #868b95;
+  --color-dim: #5a5f69;
+  --color-accent: #d6f43c;
+  --color-accent-ink: #11140a;
+  --color-ok: #34d399;
+  --color-danger: #f26d6d;
+  --color-scout: #4fb3ff;
+  --color-analis: #a78bfa;
+  --color-copy: #f5b83d;
+  --color-design: #f472b6;
+
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", "Impact", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.018) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.018) 1px, transparent 1px);
+  background-size: 48px 48px;
+  min-height: 100dvh;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.005em;
+  line-height: 0.95;
+}
+
+.card {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+}
+
+.input {
+  width: 100%;
+  background: var(--color-panel-2);
+  border: 1px solid var(--color-line-2);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-fg);
+  outline: none;
+}
+.input:focus {
+  border-color: var(--color-accent);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--color-line-2);
+  background: var(--color-panel-2);
+  color: var(--color-fg);
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn:hover {
+  border-color: var(--color-dim);
+}
+.btn-primary {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-color: var(--color-accent);
+}
+.btn-primary:hover {
+  filter: brightness(1.05);
+  border-color: var(--color-accent);
+}
+.btn-danger {
+  color: var(--color-danger);
+  border-color: rgb(242 109 109 / 0.35);
+  background: rgb(242 109 109 / 0.06);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line-2);
+  border-radius: 8px;
+}
