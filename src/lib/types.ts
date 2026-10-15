@@ -34,7 +34,9 @@ export type Post = {
   shares: number;
   saves: number;
   clicks: number;
-  /** seed warna gambar placeholder */
+  /** gambar utama dari artikel sumber (og:image / RSS), null kalau tidak ada */
+  imageUrl: string | null;
+  /** seed warna placeholder kalau tidak ada gambar */
   hue: number;
 };
 
@@ -47,7 +49,7 @@ export type Topic = {
   fetchedAt: string;
   score: number | null;
   scoreReason: string | null;
-  status: "new" | "scored" | "passed" | "rejected" | "drafted";
+  status: "new" | "passed" | "rejected" | "drafted" | "failed";
 };
 
 export type Source = {
@@ -58,6 +60,7 @@ export type Source = {
   category: string;
   active: boolean;
   lastFetchedAt: string | null;
+  lastError: string | null;
   topics24h: number;
 };
 
@@ -66,10 +69,24 @@ export type Agent = {
   name: string;
   role: string;
   status: "standby" | "running" | "off";
-  lastActiveAt: string;
+  lastActiveAt: string | null;
+  lastMessage: string | null;
 };
 
-export type Activity = { id: number; agent: AgentKey; message: string; at: string };
+export type Activity = { id: number; agent: AgentKey | "publisher"; message: string; at: string; ok: boolean };
+
+export type ProviderView = {
+  id: number;
+  name: string;
+  kind: "openai" | "gemini" | "anthropic";
+  baseUrl: string;
+  model: string;
+  keyMasked: string;
+  enabled: boolean;
+  position: number;
+  priceIn: number;
+  priceOut: number;
+};
 
 export type TeamMember = {
   id: number;

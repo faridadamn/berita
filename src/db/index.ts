@@ -2,13 +2,26 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-type Db = ReturnType<typeof drizzle<typeof schema>>;
-let db: Db | null = null;
+export type Db = ReturnType<typeof drizzle<typeof schema>>;
 
-/** Mengembalikan koneksi DB, atau null kalau DATABASE_URL belum diisi (mode data dummy). */
-export function getDb(): Db | null {
+const g = globalThis as unknown as { __db?: Db };
+
+/**
+ * Koneksi Postgres. Bisa Neon (pakai connection string "pooled" + ?sslmode=require)
+ * atau Postgres lokal (postgres://user:pass@localhost:5432/berita).
+ */
+export function db(): Db {
+  if (g.__db) return g.__db;
   const url = process.env.DATABASE_URL;
-  if (!url) return null;
-  if (!db) db = drizzle(postgres(url, { max: 5 }), { schema });
-  return db;
+  if (!url) throw new Error("DATABASE_URL belum diisi. Lihat README bagian Database.");
+  const client = postgres(url, {
+    max: Number(process.env.DB_POOL ?? 5),
+    // Neon pooler (pgbouncer) tidak mendukung prepared statement
+    prepare: !/neon\.tech/.test(url) || !/-pooler\./.test(url),
+    onnotice: () => {},
+  });
+  g.__db = drizzle(client, { schema });
+  return g.__db;
 }
+
+export { schema };

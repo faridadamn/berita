@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutGrid, Inbox, Radar, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut,
+  LayoutGrid, Inbox, Radar, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut, UserRound,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 
@@ -76,10 +76,10 @@ export function Nav({
           <span className="grid size-8 place-items-center rounded-full bg-panel-2 text-xs font-bold">
             {user.name[0]}
           </span>
-          <div className="min-w-0 leading-tight">
+          <Link href="/akun" className="min-w-0 leading-tight hover:opacity-80">
             <p className="truncate text-sm font-medium">{user.name}</p>
             <p className="text-[11px] capitalize text-dim">{user.role}</p>
-          </div>
+          </Link>
           <form action={logout} className="ml-auto">
             <button className="text-muted hover:text-fg" aria-label="Keluar">
               <LogOut size={15} />
@@ -99,7 +99,7 @@ export function Nav({
           </form>
         </div>
         <nav className="-mx-4 mt-3 flex gap-1 overflow-x-auto px-4 pb-3">
-          {[...main, ...(isAdmin ? admin : [])].map((i) => link(i, true))}
+          {[...main, ...(isAdmin ? admin : []), { href: "/akun", label: "Akun", Icon: UserRound }].map((i) => link(i, true))}
         </nav>
       </header>
     </>

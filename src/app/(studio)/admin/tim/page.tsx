@@ -1,32 +1,40 @@
+import { UserPlus } from "lucide-react";
 import { PageHead } from "@/components/page-head";
+import { ActionForm, Field } from "@/components/forms";
+import { addUser } from "@/app/actions/admin";
 import { requireAdmin } from "@/lib/auth";
 import { getTeam } from "@/lib/data";
 import { timeAgo } from "@/lib/format";
+import { TeamList } from "./team-list";
 
 export default async function TimPage() {
-  await requireAdmin();
+  const me = await requireAdmin();
   const team = await getTeam();
+  const seen = Object.fromEntries(team.map((m) => [m.id, timeAgo(m.lastSeenAt)]));
   return (
     <>
       <PageHead eyebrow="Admin" title="Tim & Akses">
-        Tidak ada pendaftaran publik — akun hanya dibuat admin. Editor bisa review & jadwalkan, admin bisa semuanya.
+        Tidak ada pendaftaran publik — akun hanya dibuat admin. Editor bisa review &amp; jadwalkan; admin juga mengatur sumber, tim, AI, dan pengaturan.
       </PageHead>
-      <div className="card divide-y divide-line/60">
-        {team.map((m) => (
-          <div key={m.id} className="flex items-center gap-3 px-4 py-3">
-            <span className="grid size-9 place-items-center rounded-full bg-panel-2 text-sm font-bold">{m.name[0]}</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium">{m.name}</p>
-              <p className="truncate text-[11px] text-dim">{m.email}</p>
-            </div>
-            <span className="text-[11px] capitalize text-muted">{m.role}</span>
-            <span className="hidden w-24 text-right text-[11px] text-dim sm:block">
-              {m.active ? timeAgo(m.lastSeenAt) : "nonaktif"}
-            </span>
-          </div>
-        ))}
-      </div>
-      <p className="mt-3 text-[11px] text-dim">Form tambah akun aktif setelah database tersambung (tahap 2).</p>
+      <TeamList team={team} meId={me.userId} seen={seen} />
+
+      <ActionForm action={addUser} resetOnSuccess className="card mt-4 grid gap-3 p-4 sm:grid-cols-2">
+        <p className="text-sm font-semibold sm:col-span-2">Tambah anggota</p>
+        <Field label="Nama"><input name="name" required className="input" /></Field>
+        <Field label="Email"><input name="email" type="email" required className="input" /></Field>
+        <Field label="Password awal" hint="Min 8 karakter. Minta dia ganti di halaman Akun.">
+          <input name="password" type="text" required minLength={8} className="input font-mono" autoComplete="off" />
+        </Field>
+        <Field label="Role">
+          <select name="role" className="input" defaultValue="editor">
+            <option value="editor">Editor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </Field>
+        <div className="sm:col-span-2">
+          <button className="btn btn-primary"><UserPlus size={13} /> Buat akun</button>
+        </div>
+      </ActionForm>
     </>
   );
 }

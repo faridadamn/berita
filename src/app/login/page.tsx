@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { brand } from "@/lib/config";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
-  if (await getSession()) redirect("/");
+  if (await getActiveSession()) redirect("/");
   const { next } = await searchParams;
   return (
     <main className="grid min-h-dvh place-items-center px-4">

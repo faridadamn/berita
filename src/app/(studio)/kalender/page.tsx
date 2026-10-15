@@ -1,16 +1,15 @@
 import Link from "next/link";
 import { PageHead } from "@/components/page-head";
-import { getPosts } from "@/lib/data";
+import { getCalendarPosts } from "@/lib/data";
 import { timezone } from "@/lib/config";
 
 const dayKey = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(new Date(iso));
 
 export default async function KalenderPage() {
-  const all = await getPosts();
-  const items = all.filter((p) => p.scheduledAt || p.postedAt);
   const today = new Date();
   const start = new Date(today.getTime() - 6 * 86400_000);
   const days = Array.from({ length: 14 }, (_, i) => new Date(start.getTime() + i * 86400_000));
+  const items = await getCalendarPosts(new Date(start.getTime() - 86400_000), new Date(start.getTime() + 15 * 86400_000));
   const todayKey = dayKey(today.toISOString());
 
   return (

@@ -3,11 +3,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const roleEnum = pgEnum("role", ["admin", "editor"]);
-export const topicStatusEnum = pgEnum("topic_status", ["new", "scored", "passed", "rejected", "drafted"]);
+export const topicStatusEnum = pgEnum("topic_status", ["new", "passed", "rejected", "drafted", "failed"]);
 export const postStatusEnum = pgEnum("post_status", [
   "review", "approved", "scheduled", "posting", "posted", "failed", "rejected",
 ]);
 export const agentEnum = pgEnum("agent", ["scout", "analis", "copywriter", "designer", "publisher"]);
+export const providerKindEnum = pgEnum("provider_kind", ["openai", "gemini", "anthropic"]);
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -16,24 +17,26 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: roleEnum("role").notNull().default("editor"),
   active: boolean("active").notNull().default(true),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Sumber topik (biasanya RSS media). */
+/** Sumber topik (RSS / Atom). */
 export const sources = pgTable("sources", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   siteUrl: text("site_url").notNull(),
-  feedUrl: text("feed_url").notNull(),
+  feedUrl: text("feed_url").notNull().unique(),
   category: text("category").notNull(), // mis. AI, SOSMED, MARKETING
   active: boolean("active").notNull().default(true),
   lastFetchedAt: timestamp("last_fetched_at", { withTimezone: true }),
+  lastError: text("last_error"),
 });
 
 /** Topik mentah yang ditemukan Scout, lalu dinilai Analis. */
 export const topics = pgTable("topics", {
   id: serial("id").primaryKey(),
-  sourceId: integer("source_id").references(() => sources.id),
+  sourceId: integer("source_id").references(() => sources.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   url: text("url").notNull().unique(),
   summary: text("summary"),
@@ -44,14 +47,14 @@ export const topics = pgTable("topics", {
   score: integer("score"), // 0-100 dari Analis
   scoreReason: text("score_reason"),
   status: topicStatusEnum("status").notNull().default("new"),
-}, (t) => [index("topics_status_idx").on(t.status)]);
+}, (t) => [index("topics_status_idx").on(t.status), index("topics_fetched_idx").on(t.fetchedAt)]);
 
-export type Slide = { kind: "cover" | "body" | "cta"; headline: string; body?: string; imageUrl?: string };
+export type Slide = { kind: "cover" | "body" | "cta"; headline: string; body?: string };
 
-/** Draft post hasil Copywriter + Designer, masuk antrian review. */
+/** Draft post hasil Copywriter (+ Designer di tahap 3), masuk antrian review. */
 export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
-  topicId: integer("topic_id").references(() => topics.id),
+  topicId: integer("topic_id").references(() => topics.id, { onDelete: "set null" }),
   kicker: text("kicker").notNull().default("AI"),
   headline: text("headline").notNull(),
   headlineAlternatives: jsonb("headline_alternatives").$type<string[]>().notNull().default([]),
@@ -62,20 +65,20 @@ export const posts = pgTable("posts", {
   slides: jsonb("slides").$type<Slide[]>().notNull().default([]),
   renderUrls: jsonb("render_urls").$type<string[]>().notNull().default([]),
   status: postStatusEnum("status").notNull().default("review"),
-  shortCode: varchar("short_code", { length: 16 }).unique(),
+  shortCode: varchar("short_code", { length: 16 }).notNull().unique(),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   postedAt: timestamp("posted_at", { withTimezone: true }),
   igMediaId: text("ig_media_id"),
   igPermalink: text("ig_permalink"),
   error: text("error"),
-  // metrik (disinkron dari Instagram Insights)
+  // metrik (disinkron dari Instagram Insights di tahap 3)
   views: integer("views").notNull().default(0),
   reach: integer("reach").notNull().default(0),
   likes: integer("likes").notNull().default(0),
   comments: integer("comments").notNull().default(0),
   shares: integer("shares").notNull().default(0),
   saves: integer("saves").notNull().default(0),
-  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedBy: integer("reviewed_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("posts_status_idx").on(t.status)]);
@@ -83,21 +86,42 @@ export const posts = pgTable("posts", {
 /** Klik shortlink /s/:code → artikel asli. */
 export const clicks = pgTable("clicks", {
   id: serial("id").primaryKey(),
-  postId: integer("post_id").notNull().references(() => posts.id),
+  postId: integer("post_id").notNull().references(() => posts.id, { onDelete: "cascade" }),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   referrer: text("referrer"),
-  userAgent: text("user_agent"),
-});
+}, (t) => [index("clicks_post_idx").on(t.postId)]);
 
 /** Log aktivitas agen + biaya AI. */
 export const agentRuns = pgTable("agent_runs", {
   id: serial("id").primaryKey(),
   agent: agentEnum("agent").notNull(),
   message: text("message").notNull(),
+  ok: boolean("ok").notNull().default(true),
+  provider: text("provider"),
+  model: text("model"),
   tokensIn: integer("tokens_in").notNull().default(0),
   tokensOut: integer("tokens_out").notNull().default(0),
   costUsd: real("cost_usd").notNull().default(0),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("agent_runs_at_idx").on(t.at)]);
+
+/**
+ * Provider AI. Urutan `position` = rantai fallback: kalau provider pertama error/limit,
+ * agen otomatis pindah ke berikutnya. API key disimpan terenkripsi (AES-GCM, kunci dari AUTH_SECRET).
+ */
+export const aiProviders = pgTable("ai_providers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: providerKindEnum("kind").notNull(),
+  baseUrl: text("base_url").notNull().default(""),
+  model: text("model").notNull(),
+  apiKeyEnc: text("api_key_enc").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  position: integer("position").notNull().default(0),
+  /** USD per 1 juta token, diisi sendiri dari halaman harga provider. 0 = tidak dihitung. */
+  priceIn: real("price_in").notNull().default(0),
+  priceOut: real("price_out").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /** "Brain": pedoman gaya, persona, dan aturan yang disuntikkan ke prompt agen. */

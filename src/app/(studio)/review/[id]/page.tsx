@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarClock, CheckCircle2, ExternalLink, Link2, Trash2, XCircle, Check, Wand2 } from "lucide-react";
 import { getPost } from "@/lib/data";
 import { formatWIB, toLocalInput } from "@/lib/format";
-import { removePost, savePostText, schedulePost, setPostStatus } from "@/app/actions/studio";
+import { removePost, savePostText, schedulePost, setPostStatus, applyAlternative } from "@/app/actions/studio";
+import { ActButton } from "@/components/forms";
 import { SlideViewer } from "./slide-viewer";
 
 const statusLabel: Record<string, string> = {
@@ -95,7 +96,7 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
             </div>
           </section>
 
-          <form action={save} className="card space-y-4 p-4">
+          <form key={post.headline} action={save} className="card space-y-4 p-4">
             <p className="text-sm font-semibold">Slide 1 · Cover</p>
             <div className="grid grid-cols-2 gap-3">
               <label className="space-y-1.5">
@@ -117,15 +118,25 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
             </label>
             {post.headlineAlternatives.length > 0 && (
               <div className="space-y-1">
-                <p className="text-[11px] text-dim">Alternatif dari Copywriter:</p>
+                <p className="text-[11px] text-dim">Alternatif dari Copywriter (klik untuk pakai):</p>
                 {post.headlineAlternatives.map((h) => (
-                  <p key={h} className="rounded-md border border-line px-2.5 py-1.5 text-[12px] text-muted">{h}</p>
+                  <ActButton
+                    key={h}
+                    run={applyAlternative.bind(null, post.id, h)}
+                    className="w-full rounded-md border border-line px-2.5 py-1.5 text-left text-[12px] text-muted hover:border-line-2 hover:text-fg"
+                  >
+                    {h}
+                  </ActButton>
                 ))}
               </div>
             )}
             <label className="block space-y-1.5">
               <span className="eyebrow !text-[9px]">Caption</span>
-              <textarea name="caption" defaultValue={post.caption} rows={6} className="input" />
+              <textarea name="caption" defaultValue={post.caption} rows={7} className="input" />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="eyebrow !text-[9px]">Hashtag</span>
+              <input name="hashtags" defaultValue={post.hashtags.join(" ")} className="input" />
             </label>
             <p className="text-[11px] text-dim">
               Format carousel: slide isi tetap disimpan; pembaca diarahkan ke artikel asli lewat halaman <b>/baca</b>.

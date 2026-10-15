@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-// Rute publik: login, shortlink /s/*, halaman pembaca /baca, aset.
-const PUBLIC = [/^\/login/, /^\/s\//, /^\/baca/, /^\/api\/public/];
+// Rute publik: login, shortlink /s/*, halaman pembaca /baca, cron (dilindungi CRON_SECRET).
+const PUBLIC = [/^\/login/, /^\/s\//, /^\/baca/, /^\/api\/cron/];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

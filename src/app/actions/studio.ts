@@ -1,38 +1,49 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/db";
 import { requireSession } from "@/lib/auth";
-import { deletePost, updatePost } from "@/lib/data";
-import * as mock from "@/lib/mock";
+import { deletePost, getPostRaw, updatePost, updatePosts } from "@/lib/data";
+import { runPipeline } from "@/lib/agents/pipeline";
 import type { PostStatus, TemplateKey } from "@/lib/types";
 
-/** Tahap 2: panggil job Scout sungguhan (fetch RSS → simpan topics). Sekarang cuma nulis log. */
-export async function runScoutNow() {
+export type ActionState = { ok?: boolean; message?: string };
+
+/** Tombol "Cari topik sekarang": jalankan Scout → Analis → Copywriter sekarang juga. */
+export async function runNow(): Promise<ActionState> {
   await requireSession();
-  mock.activity.unshift({
-    id: Date.now(),
-    agent: "scout",
-    message: "Dipicu manual — belum ada topik baru (mode dummy)",
-    at: new Date().toISOString(),
-  });
-  mock.agents[0].lastActiveAt = new Date().toISOString();
-  revalidatePath("/");
+  try {
+    const r = await runPipeline({ force: true });
+    revalidatePath("/", "layout");
+    if ("skipped" in r) return { ok: false, message: r.skipped };
+    const parts = [
+      r.scout ? `${r.scout.found} topik baru` : null,
+      `${r.analis.scored} dinilai (${r.analis.passed} lolos)`,
+      `${r.copywriter.drafted} draft ditulis`,
+    ].filter(Boolean);
+    const err = ("error" in r.analis && r.analis.error) || (r.copywriter.failed?.length ? r.copywriter.failed[0] : null);
+    return { ok: !err, message: parts.join(" · ") + (err ? ` — ${err}` : "") };
+  } catch (e) {
+    return { ok: false, message: (e as Error).message };
+  }
 }
 
 export async function setPostStatus(id: number, status: PostStatus) {
-  await requireSession();
-  await updatePost(id, { status });
+  const s = await requireSession();
+  await updatePost(id, { status, reviewedBy: Number(s.userId) });
   revalidatePath("/review");
   revalidatePath(`/review/${id}`);
 }
 
 export async function schedulePost(id: number, form: FormData) {
-  await requireSession();
+  const s = await requireSession();
   const local = String(form.get("scheduledAt") ?? "");
   if (!local) return;
   // input datetime-local dianggap WIB (UTC+7)
-  const iso = new Date(`${local}:00+07:00`).toISOString();
-  await updatePost(id, { status: "scheduled", scheduledAt: iso });
+  const when = new Date(`${local}:00+07:00`);
+  if (isNaN(+when)) return;
+  await updatePost(id, { status: "scheduled", scheduledAt: when, reviewedBy: Number(s.userId) });
   revalidatePath("/review");
   revalidatePath(`/review/${id}`);
   revalidatePath("/kalender");
@@ -40,20 +51,42 @@ export async function schedulePost(id: number, form: FormData) {
 
 export async function savePostText(id: number, form: FormData) {
   await requireSession();
-  const post = mock.posts.find((p) => p.id === id);
+  const post = await getPostRaw(id);
   if (!post) return;
-  const headline = String(form.get("headline") ?? post.headline);
+  const headline = String(form.get("headline") ?? post.headline).trim() || post.headline;
   const slides = post.slides.map((s, i) => (i === 0 ? { ...s, headline } : s));
+  const template = String(form.get("template") ?? post.template);
   await updatePost(id, {
     headline,
-    kicker: String(form.get("kicker") ?? post.kicker),
-    template: String(form.get("template") ?? post.template) as TemplateKey,
+    kicker: String(form.get("kicker") ?? post.kicker).trim(),
+    template: (["stabilo", "putih", "foto"].includes(template) ? template : post.template) as TemplateKey,
     caption: String(form.get("caption") ?? post.caption),
+    hashtags: String(form.get("hashtags") ?? post.hashtags.join(" "))
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .map((h) => "#" + h.replace(/^#+/, "")),
     slides,
   });
   // Tahap 3: kalau intent === "render", panggil Designer untuk render ulang gambar.
   revalidatePath(`/review/${id}`);
   revalidatePath("/review");
+}
+
+export async function applyAlternative(id: number, headline: string) {
+  await requireSession();
+  const post = await getPostRaw(id);
+  if (!post) return;
+  const alts = [post.headline, ...post.headlineAlternatives.filter((h) => h !== headline)];
+  await db()
+    .update(schema.posts)
+    .set({
+      headline,
+      headlineAlternatives: alts,
+      slides: post.slides.map((s, i) => (i === 0 ? { ...s, headline } : s)),
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.posts.id, id));
+  revalidatePath(`/review/${id}`);
 }
 
 export async function removePost(id: number) {
@@ -64,7 +97,14 @@ export async function removePost(id: number) {
 }
 
 export async function bulkSetStatus(ids: number[], status: PostStatus) {
-  await requireSession();
-  for (const id of ids) await updatePost(id, { status });
+  const s = await requireSession();
+  await updatePosts(ids.filter(Number.isInteger), { status, reviewedBy: Number(s.userId) });
   revalidatePath("/review");
+}
+
+/** Kembalikan topik ke antrian (mis. topik yang ditolak Analis tapi menurut tim layak). */
+export async function requeueTopic(id: number, to: "new" | "passed") {
+  await requireSession();
+  await db().update(schema.topics).set({ status: to }).where(eq(schema.topics.id, id));
+  revalidatePath("/radar");
 }

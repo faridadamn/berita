@@ -10,6 +10,7 @@ export function BarList({
     <div className="card p-4">
       <p className="text-sm font-semibold">{title}</p>
       {sub && <p className="mt-0.5 text-[11px] text-dim">{sub}</p>}
+      {!rows.length && <p className="mt-4 text-[12px] text-dim">Belum ada data.</p>}
       <ul className="mt-4 space-y-2">
         {rows.map((r) => (
           <li key={r.name} className="flex items-center gap-3 text-[12px]">

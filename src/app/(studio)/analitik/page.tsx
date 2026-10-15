@@ -9,7 +9,7 @@ export default async function AnalitikPage() {
     p.reach ? (((p.likes + p.comments + p.shares + p.saves) / p.reach) * 100).toFixed(1) + "%" : "–";
   return (
     <>
-      <PageHead eyebrow="Performa" title="Analitik">Data contoh. Tahap 3 disinkron dari Instagram Insights.</PageHead>
+      <PageHead eyebrow="Performa" title="Analitik">Klik ke media sudah dihitung nyata. Views, reach, dan interaksi terisi setelah Instagram tersambung (tahap 3).</PageHead>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Total views" value={a.totals.views} />
@@ -29,6 +29,9 @@ export default async function AnalitikPage() {
             </tr>
           </thead>
           <tbody>
+            {!a.posted.length && (
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted">Belum ada post yang terposting.</td></tr>
+            )}
             {a.posted.map((p) => (
               <tr key={p.id} className="border-b border-line/50 last:border-0">
                 <td className="px-4 py-2.5">

@@ -8,13 +8,16 @@ import { brand } from "@/lib/config";
 export function SlidePreview({
   post, slide, index = 0, className = "",
 }: {
-  post: Pick<Post, "template" | "hue" | "sourceName" | "kicker">;
+  post: Pick<Post, "template" | "hue" | "sourceName" | "kicker" | "imageUrl">;
   slide: Slide;
   index?: number;
   className?: string;
 }) {
   const t: TemplateKey = post.template;
-  const photo = `linear-gradient(135deg, hsl(${post.hue} 45% 32%), hsl(${(post.hue + 40) % 360} 35% 14%))`;
+  const gradient = `linear-gradient(135deg, hsl(${post.hue} 45% 32%), hsl(${(post.hue + 40) % 360} 35% 14%))`;
+  const photo: React.CSSProperties = post.imageUrl
+    ? { backgroundImage: `url("${post.imageUrl.replace(/"/g, "%22")}"), ${gradient}`, backgroundSize: "cover", backgroundPosition: "center" }
+    : { background: gradient };
   const cq = (n: number) => ({ fontSize: `${n}cqw` });
 
   const header = (dark: boolean) => (
@@ -57,7 +60,7 @@ export function SlidePreview({
 
   if (t === "foto") {
     return wrap(
-      <div className={`${base} flex flex-col p-[6cqw] text-white`} style={{ background: photo }}>
+      <div className={`${base} flex flex-col p-[6cqw] text-white`} style={photo}>
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         <div className="relative">{header(true)}</div>
         <div className="relative mt-auto space-y-[2.5cqw]">
@@ -87,7 +90,7 @@ export function SlidePreview({
             {slide.body}
           </p>
         )}
-        <div className="mt-[4cqw] flex-1 rounded-[2cqw]" style={{ background: photo }} />
+        <div className="mt-[4cqw] flex-1 rounded-[2cqw]" style={photo} />
         <div className="mt-[3cqw]">{footer(false)}</div>
       </div>
     );
@@ -100,7 +103,7 @@ export function SlidePreview({
       <p className="display mt-[4cqw] text-center" style={cq(9)}>
         “{slide.headline}”
       </p>
-      <div className="mx-[3cqw] mt-[4cqw] flex-1 rounded-[2cqw] shadow-lg" style={{ background: photo }} />
+      <div className="mx-[3cqw] mt-[4cqw] flex-1 rounded-[2cqw] shadow-lg" style={photo} />
       {slide.body && (
         <p className="mt-[4cqw] text-center font-medium leading-snug" style={cq(3.4)}>
           {slide.body}
