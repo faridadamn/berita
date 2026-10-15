@@ -70,10 +70,15 @@ export async function saveChannel(
     .onConflictDoUpdate({ target: schema.channels.platform, set });
 }
 
-/** URL publik aplikasi (wajib untuk IG & Threads, karena mereka mengambil gambar dari URL). */
+/**
+ * URL publik aplikasi termasuk basePath (wajib untuk IG & Threads, karena mereka mengambil gambar dari URL).
+ * APP_URL boleh diisi domain saja (https://domain.com) atau lengkap (https://domain.com/berita).
+ */
 export function appUrl() {
   const u = (process.env.APP_URL ?? "").replace(/\/+$/, "");
-  return u || null;
+  if (!u) return null;
+  const bp = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/+$/, "");
+  return bp && !u.endsWith(bp) ? u + bp : u;
 }
 
 const SECRET_KEYS = new Set(["accessToken", "apiKey", "apiSecret", "accessSecret"]);

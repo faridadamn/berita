@@ -1,6 +1,5 @@
 "use client";
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { ChevronLeft, ChevronRight, Download, ImageIcon, Eye, Wand2, AlertTriangle } from "lucide-react";
 import { SlidePreview } from "@/components/slide-preview";
 import { Msg } from "@/components/forms";
@@ -88,9 +87,9 @@ export function SlideViewer({ post, stale }: { post: Post; stale: boolean }) {
       <div className="mx-auto mt-4 flex max-w-md flex-wrap gap-2">
         {hasRender ? (
           <>
-            <Link href={`/review/${post.id}/download`} className="btn btn-primary">
+            <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/review/${post.id}/download`} className="btn btn-primary" download>
               <Download size={13} /> Download semua ({post.renderCount})
-            </Link>
+            </a>
             <a href={src(i)} download={`slide-${i + 1}.jpg`} className="btn">
               <Download size={13} /> Slide {i + 1}
             </a>

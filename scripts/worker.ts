@@ -5,7 +5,9 @@
  */
 import { loadEnvConfig } from "@next/env";
 loadEnvConfig(process.cwd());
-const appUrl = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+const base = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+const bp = (process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/+$/, "");
+const appUrl = bp && !base.endsWith(bp) ? base + bp : base;
 const secret = process.env.CRON_SECRET;
 const everyMin = Number(process.env.WORKER_INTERVAL_MIN ?? 15);
 if (!secret) {

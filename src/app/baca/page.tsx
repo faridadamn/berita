@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { SlidePreview } from "@/components/slide-preview";
-import { brand } from "@/lib/config";
+import { basePath, brand } from "@/lib/config";
 import { getPublishedPosts } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -28,17 +27,18 @@ export default async function BacaPage() {
         </header>
         <div className="mt-5 grid grid-cols-3 gap-1">
           {posts.map((p) => (
-            <Link key={p.id} href={`/s/${p.shortCode}`} className="relative block">
+            // <a> biasa, bukan <Link>: Link mem-prefetch rute /s/ dan bikin klik palsu
+            <a key={p.id} href={`${basePath}/s/${p.shortCode}`} className="relative block">
               {p.renderCount > 0 ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/m/${p.shortCode}/1.jpg?v=${p.renderHash ?? ""}`} alt={p.headline} loading="lazy" className="aspect-[4/5] w-full object-cover" />
+                <img src={`${basePath}/m/${p.shortCode}/1.jpg?v=${p.renderHash ?? ""}`} alt={p.headline} loading="lazy" className="aspect-[4/5] w-full object-cover" />
               ) : (
                 <SlidePreview post={p} slide={p.slides[0]} className="!rounded-none" />
               )}
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 px-1 pt-3 pb-0.5 text-[9px] font-semibold text-white">
                 {p.sourceName}
               </span>
-            </Link>
+            </a>
           ))}
         </div>
         <p className="mt-6 text-center text-[11px] leading-relaxed text-black/50">

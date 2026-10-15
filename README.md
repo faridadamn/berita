@@ -99,6 +99,13 @@ Env wajib: `AUTH_SECRET`, `DATABASE_URL`, `CRON_SECRET`, `APP_URL`, `ADMIN_PASSW
 Render memakai `sharp` (native) — jalan di Vercel, Railway, VPS, dll. Gambar render tersimpan di DB (±150–300 KB per slide); di Neon gratisan cukup untuk ratusan post.
 Tanpa `ADMIN_PASSWORD_HASH`, login pertama di production ditolak (password default hanya untuk dev). Satu putaran bisa 1–2 menit; di serverless pastikan batas durasi fungsi cukup (`maxDuration = 300` sudah diset di route cron).
 
+### Deploy di subpath (mis. `domain.com/berita`)
+
+- Set `BASE_PATH=/berita` **saat build** (`BASE_PATH=/berita npm run build`), lalu reverse proxy meneruskan `/berita/*` ke app apa adanya (jangan di-strip).
+- `APP_URL` boleh `https://domain.com` atau `https://domain.com/berita` — basePath ditambahkan otomatis.
+- Semua URL publik ikut subpath: cron `https://domain.com/berita/api/cron`, link bio `https://domain.com/berita/baca`, gambar `…/berita/m/…`.
+- Worker: `APP_URL=https://domain.com BASE_PATH=/berita CRON_SECRET=… npm run worker`.
+
 ## Struktur
 
 ```
