@@ -13,6 +13,7 @@ import { ActButton } from "@/components/forms";
 import { SlideViewer } from "./slide-viewer";
 import { PublishPanel } from "./publish-panel";
 import { CopyPanel } from "./copy-panel";
+import { getProducts } from "@/lib/products";
 
 const statusLabel: Record<string, string> = {
   review: "Perlu review", approved: "Disetujui", scheduled: "Terjadwal", posting: "Sedang posting",
@@ -24,7 +25,11 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const post = await getPost(Number(id));
   if (!post) notFound();
-  const [pubs, channels, raw] = await Promise.all([getPublications(post.id), getChannelViews(), loadPostForRender(post.id)]);
+  const [pubs, channels, raw, products] = await Promise.all([getPublications(post.id), getChannelViews(), loadPostForRender(post.id), getProducts()]);
+  // katalog untuk editor slide produk: produk aktif + produk yang sudah dipakai post ini
+  const catalog = products
+    .filter((p) => p.active || post.productIds.includes(p.id))
+    .map((p) => ({ id: p.id, name: p.name, price: p.price, currency: p.currency, image: p.images[0] ?? null, active: p.active }));
   const stale = post.renderCount > 0 && !!raw && raw.renderHash !== renderHashOf(raw);
   const base = appUrl();
   const link = `${base ?? ""}/s/${post.shortCode}`;
@@ -103,8 +108,8 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
             </div>
           </section>
 
-          <RewritePanel postId={post.id} current={post.contentType} />
-          <PostEditor key={post.renderHash ?? "0"} post={post} mainImage={raw ? mainImageOf(raw) : null} />
+          <RewritePanel postId={post.id} current={post.contentType} sales={post.productIds.length > 0} />
+          <PostEditor key={post.renderHash ?? "0"} post={post} mainImage={raw ? mainImageOf(raw) : null} catalog={catalog} />
         </div>
       </div>
     </>

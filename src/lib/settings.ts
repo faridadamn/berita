@@ -13,6 +13,10 @@ export type Settings = {
   draftsPerRun: number; // draft ditulis Copywriter per putaran
   maxTopicAgeHours: number; // topik lebih tua dari ini diabaikan Scout
   language: string;
+  /** mode jualan: kalimat pengungkapan link affiliate (ditambahkan ke caption post jualan) */
+  salesDisclosure: string;
+  /** mode jualan: arahan CTA (mis. "cek keranjang kuning", "link di bio") */
+  salesCta: string;
 };
 
 export const defaultSettings: Settings = {
@@ -24,6 +28,8 @@ export const defaultSettings: Settings = {
   draftsPerRun: 3,
   maxTopicAgeHours: 48,
   language: "Bahasa Indonesia santai",
+  salesDisclosure: "Post ini berisi link affiliate — aku dapat komisi kecil kalau kamu beli lewat link ini, harga tetap sama. #ad",
+  salesCta: "Link produk ada di bio (pilih post ini) atau di komentar.",
 };
 
 export async function getSettings(): Promise<Settings> {

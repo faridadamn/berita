@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { Nav } from "@/components/nav";
 import { requireSession } from "@/lib/auth";
-import { brand } from "@/lib/config";
+import { getBrand } from "@/lib/brand-kit";
 import { getAiCost, getErrorCount, getPostCounts } from "@/lib/data";
 import { usd } from "@/lib/format";
 import { getThemePref } from "@/lib/theme";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function StudioLayout({ children }: { children: React.ReactNode }) {
   const session = await requireSession();
-  const [counts, cost, errorCount, theme] = await Promise.all([getPostCounts(), getAiCost(), getErrorCount(24), getThemePref()]);
+  const [counts, cost, errorCount, theme, brand] = await Promise.all([getPostCounts(), getAiCost(), getErrorCount(24), getThemePref(), getBrand()]);
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
       <Nav

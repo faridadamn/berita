@@ -3,8 +3,8 @@ import { randomBytes } from "node:crypto";
 import { count, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AiError, completeJson } from "../ai";
-import { brand } from "../config";
-import { TEMPLATE_ROTATION, isContentType, type ContentType, type Slide } from "../content";
+import { getBrand } from "../brand-kit";
+import { TEMPLATE_ROTATION, isContentType, isSalesType, type ContentType, type Slide } from "../content";
 import { getSettings } from "../settings";
 import { fetchSource, type SourceContent } from "../sources/fetch-source";
 import { Usage, audience, brainFor, logRun } from "./common";
@@ -37,14 +37,15 @@ type Draft = Common & {
   tips?: Pair[]; // tips
 };
 
-const clean = (s: unknown, max: number) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
-const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+export const clean = (s: unknown, max: number) => String(s ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+export const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 const shortCode = () => randomBytes(6).toString("base64url").replace(/[-_]/g, "x").slice(0, 6);
 export const isRealUrl = (u: string) => /^https?:\/\//.test(u);
 
 /* ───────────── Spesifikasi per jenis konten ───────────── */
 
-const FORMAT: Record<ContentType, { rules: string; shape: string; check: (d: Draft) => string | null }> = {
+type NewsType = Exclude<ContentType, "promo" | "rekomendasi" | "perbandingan">;
+const FORMAT: Record<NewsType, { rules: string; shape: string; check: (d: Draft) => string | null }> = {
   berita: {
     rules:
       `Ubah berita jadi carousel yang merangkum dengan sudut pandang sendiri.\n` +
@@ -88,7 +89,7 @@ const FORMAT: Record<ContentType, { rules: string; shape: string; check: (d: Dra
   },
 };
 
-function ctaFor(format: ContentType, source: string, kind: SourceContent["kind"] | "idea"): Slide {
+function ctaFor(format: ContentType, source: string, kind: SourceContent["kind"] | "idea", brand: { handle: string }): Slide {
   if (kind === "idea") return { kind: "cta", headline: `Follow ${brand.handle}`, body: "Simpan post ini biar nggak lupa, dan share ke teman yang butuh." };
   if (kind === "github") return { kind: "cta", headline: "Link repo ada di bio", body: `Klik link di bio ${brand.handle}, pilih post ini, langsung ke repo-nya. Simpan & share ke teman dev kamu.` };
   if (format === "tutorial") return { kind: "cta", headline: "Simpan biar nggak lupa", body: `Panduan lengkapnya dari ${source} ada di link bio. Coba praktikkan, ceritakan hasilnya di komentar.` };
@@ -144,7 +145,7 @@ function buildSlides(format: ContentType, d: Draft, headline: string, cta: Slide
 }
 
 /** Bagikan gambar berbeda ke slide isi (gambar ke-2, ke-3, … dari pustaka). */
-function assignImages(slides: Slide[], pool: string[], main: string | null): Slide[] {
+export function assignImages(slides: Slide[], pool: string[], main: string | null): Slide[] {
   const extra = pool.filter((p) => p !== main);
   if (!extra.length) return slides;
   let k = 0;
@@ -168,14 +169,17 @@ export async function writeDraft(t: Topic, opts: { sourceName?: string | null; f
   const linked = typeof t.meta?.link === "string" && isRealUrl(t.meta.link) ? t.meta.link : null;
   const fetched: SourceContent | null = real ? await fetchSource(linked ?? t.url) : null;
   const sourceKind: SourceContent["kind"] | "idea" = fetched?.kind ?? "idea";
-  const format: ContentType =
+  const wanted: ContentType =
     opts.format ?? (isContentType(t.format) ? t.format : sourceKind === "github" ? "review" : "berita");
+  // jenis jualan ditulis oleh writeSalesDraft (butuh produk katalog) — dari artikel jatuh ke "review"
+  const format: NewsType = isSalesType(wanted) ? "review" : (wanted as NewsType);
+  const brand = await getBrand();
   const source = opts.sourceName ?? (real ? new URL(t.url).hostname.replace(/^www\./, "") : brand.name);
   const notes = (opts.notes ?? String(t.meta?.notes ?? "")).trim();
   const spec = FORMAT[format];
 
   const system =
-    `Kamu adalah Copywriter di redaksi konten. ${audience()}\n` +
+    `Kamu adalah Copywriter di redaksi konten. ${await audience()}\n` +
     `Tulis dalam ${s.language}. ${spec.rules}\n` +
     (real
       ? `JANGAN menyalin kalimat sumber, JANGAN menambah fakta/angka/nama yang tidak ada di sumber, dan selalu atribusikan ke ${source}.\n`
@@ -211,7 +215,7 @@ export async function writeDraft(t: Topic, opts: { sourceName?: string | null; f
   const headline = clean(d.headline, 140);
   const main = t.imageUrl ?? fetched?.images[0] ?? null;
   const pool = [...new Set([main, ...(t.images ?? []), ...(fetched?.images ?? [])].filter((x): x is string => !!x))].slice(0, 12);
-  const slides = assignImages(buildSlides(format, d, headline, ctaFor(format, source, sourceKind)), pool, main);
+  const slides = assignImages(buildSlides(format, d, headline, ctaFor(format, source, sourceKind, brand)), pool, main);
   const hashtags = arr<string>(d.hashtags)
     .map((h) => "#" + String(h).replace(/^#+/, "").replace(/\s+/g, ""))
     .filter((h) => h.length > 1)
@@ -244,13 +248,13 @@ export async function writeDraft(t: Topic, opts: { sourceName?: string | null; f
   return { values, topicPatch, format };
 }
 
-async function pickTemplate(format: ContentType, offset: number) {
+export async function pickTemplate(format: ContentType, offset: number) {
   const [{ n }] = await db().select({ n: count() }).from(schema.posts);
   const rot = TEMPLATE_ROTATION[format];
   return rot[(Number(n) + offset) % rot.length];
 }
 
-async function insertPost(values: WriteResult["values"], template: string) {
+export async function insertPost(values: WriteResult["values"], template: string) {
   for (let attempts = 0; ; attempts++) {
     try {
       const [p] = await db()

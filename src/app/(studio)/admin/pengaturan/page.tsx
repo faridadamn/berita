@@ -4,14 +4,14 @@ import { saveSettingsAction } from "@/app/actions/admin";
 import { requireAdmin } from "@/lib/auth";
 import { loadChain } from "@/lib/ai";
 import { presets } from "@/lib/ai/providers";
-import { brand } from "@/lib/config";
+import { getBrand } from "@/lib/brand-kit";
 import { getProviders } from "@/lib/data";
 import { getSettings } from "@/lib/settings";
 import { ProviderManager } from "./provider-manager";
 
 export default async function PengaturanPage() {
   await requireAdmin();
-  const [s, providers] = await Promise.all([getSettings(), getProviders()]);
+  const [s, providers, brand] = await Promise.all([getSettings(), getProviders(), getBrand()]);
   const envFallback = providers.length ? [] : (await loadChain()).map((p) => p.name);
   const cronReady = !!process.env.CRON_SECRET;
 
@@ -43,7 +43,7 @@ export default async function PengaturanPage() {
           </ActionForm>
 
           <div className="card divide-y divide-line/60 text-[12px]">
-            <Row k="Brand" v={`${brand.name} · ${brand.handle}`} note="NEXT_PUBLIC_BRAND_NAME / _HANDLE" />
+            <Row k="Brand" v={`${brand.name} · ${brand.handle}`} note="Ubah di Admin → Brand Kit" />
             <Row k="Penjadwal" v={cronReady ? "CRON_SECRET terpasang" : "CRON_SECRET belum diisi"} warn={!cronReady} note="Panggil /api/cron tiap 15 menit (lihat README)" />
             <Row k="Instagram" v="Belum tersambung" note="Tahap 3 — Instagram Graph API" />
           </div>

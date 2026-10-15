@@ -162,6 +162,7 @@ function toPost({ post: p, topic: t, sourceName, clicks: c, renderCount: rc }: P
     imageUrl: t?.imageUrl ?? null,
     hue: (p.id * 47) % 360,
     platformText: p.platformText ?? {},
+    productIds: p.productIds ?? [],
     contentType: isContentType(p.contentType) ? p.contentType : "berita",
     images: p.images ?? [],
     renderCount: rc,
@@ -219,7 +220,7 @@ export async function getCalendarPosts(from: Date, to: Date) {
 type PostPatch = Partial<
   Pick<
     typeof posts.$inferInsert,
-    "status" | "scheduledAt" | "headline" | "kicker" | "caption" | "template" | "format" | "slides" | "hashtags" | "reviewedBy" | "platformText" | "contentType" | "images"
+    "status" | "scheduledAt" | "headline" | "kicker" | "caption" | "template" | "format" | "slides" | "hashtags" | "reviewedBy" | "platformText" | "contentType" | "images" | "productIds"
   >
 >;
 

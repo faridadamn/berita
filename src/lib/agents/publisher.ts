@@ -143,7 +143,9 @@ async function prepare(postId: number) {
 }
 
 async function publishTo(platform: Platform, x: NonNullable<Awaited<ReturnType<typeof prepare>>>) {
-  const { p, imgs, base, link, all, nonCta } = x;
+  const { p, imgs, base, all, nonCta } = x;
+  // post jualan: tandai kanal di shortlink supaya klik produk terlacak per platform
+  const link = x.link && p.productIds.length ? `${x.link}?c=${platform}` : x.link;
   const src = { headline: p.headline, caption: p.caption, hashtags: p.hashtags, platformText: p.platformText };
   const v = p.renderHash ?? "1";
 

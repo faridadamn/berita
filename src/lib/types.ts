@@ -39,7 +39,9 @@ export type Post = {
   imageUrl: string | null;
   /** seed warna placeholder kalau tidak ada gambar */
   hue: number;
-  platformText: { threads?: string; x?: string; linkedin?: string };
+  platformText: { threads?: string; x?: string; linkedin?: string; tiktok?: string; wa?: string };
+  /** mode jualan: produk katalog di post ini */
+  productIds: number[];
   contentType: ContentType;
   /** pustaka gambar post */
   images: string[];
@@ -137,3 +139,27 @@ export type TeamMember = {
 };
 
 export type BrainNote = { id: number; title: string; content: string; appliesTo: AgentKey[] };
+
+export type ProductRow = {
+  id: number;
+  name: string;
+  url: string;
+  affiliateUrl: string;
+  platform: import("./content").ProductPlatform;
+  price: number | null;
+  originalPrice: number | null;
+  currency: string;
+  rating: number | null;
+  sold: number | null;
+  images: string[];
+  description: string;
+  category: string;
+  notes: string;
+  promo: string;
+  active: boolean;
+  shortCode: string;
+  clicks: number;
+  clicks7d: number;
+  posts: number;
+  updatedAt: string;
+};

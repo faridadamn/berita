@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireSession } from "@/lib/auth";
-import { isContentType, type ContentType } from "@/lib/content";
+import { isContentType, isSalesType, type ContentType } from "@/lib/content";
+import { rewriteSalesPost, type SalesType } from "@/lib/agents/sales";
 import { draftTopic, rewritePost } from "@/lib/agents/copywriter";
 import { fetchSource } from "@/lib/sources/fetch-source";
 import { renderPost } from "@/lib/render";
@@ -94,7 +95,15 @@ export async function rewriteAs(postId: number, _: ActionState, f: FormData): Pr
   const fmt = String(f.get("format") ?? "");
   const notes = String(f.get("notes") ?? "").trim().slice(0, 1000);
   try {
-    await rewritePost(postId, { format: isContentType(fmt) ? fmt : undefined, notes: notes || undefined });
+    const [p] = await db().select({ productIds: schema.posts.productIds, contentType: schema.posts.contentType }).from(schema.posts).where(eq(schema.posts.id, postId));
+    if (!p) return { ok: false, message: "Post tidak ditemukan" };
+    const isSalesPost = p.productIds.length > 0;
+    if (isSalesType(fmt) || (isSalesPost && !fmt)) {
+      if (!isSalesPost) return { ok: false, message: "Jenis jualan butuh produk — buat dari halaman Jualan (pilih produk lalu Buat konten)" };
+      await rewriteSalesPost(postId, (isSalesType(fmt) ? fmt : p.contentType) as SalesType, notes || undefined);
+    } else if (isSalesPost) {
+      return { ok: false, message: "Post jualan hanya bisa ditulis ulang sebagai Promo, Rekomendasi, atau Perbandingan" };
+    } else await rewritePost(postId, { format: isContentType(fmt) ? fmt : undefined, notes: notes || undefined });
     try {
       await renderPost(postId);
     } catch {

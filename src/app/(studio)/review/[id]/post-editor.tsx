@@ -6,15 +6,21 @@ import {
   addImageUrl, addStockImage, removeImage, savePost, scrapeArticleImages, searchStockImages, uploadImage,
   type ActionState, type PostEdit,
 } from "@/app/actions/studio";
-import { CONTENT_TYPES, SLIDE_KINDS, TEMPLATES, imageSrc, type Slide, type SlideKind } from "@/lib/content";
+import { CONTENT_TYPES, SLIDE_KINDS, TEMPLATES, formatPrice, imageSrc, type Slide, type SlideKind } from "@/lib/content";
 import type { Post } from "@/lib/types";
 
 const bp = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const lines = (a?: string[]) => (a ?? []).join("\n");
 const unlines = (s: string) => s.split("\n").map((x) => x.trim()).filter(Boolean);
 
-function blank(kind: SlideKind, n: number): Slide {
+export type CatalogItem = { id: number; name: string; price: number | null; currency: string; image: string | null; active: boolean };
+
+function blank(kind: SlideKind, n: number, catalog: CatalogItem[] = []): Slide {
   switch (kind) {
+    case "product":
+      return { kind, headline: "Produk pilihan", body: "", productId: catalog[0]?.id };
+    case "compare":
+      return { kind, headline: "Mana yang cocok buat kamu?", productIds: catalog.slice(0, 2).map((c) => c.id), items: ["", ""], pick: 1 };
     case "step":
       return { kind, step: n, headline: `Langkah ${n}`, body: "" };
     case "list":
@@ -30,7 +36,7 @@ function blank(kind: SlideKind, n: number): Slide {
   }
 }
 
-export function PostEditor({ post, mainImage }: { post: Post; mainImage: string | null }) {
+export function PostEditor({ post, mainImage, catalog = [] }: { post: Post; mainImage: string | null; catalog?: CatalogItem[] }) {
   const [kicker, setKicker] = useState(post.kicker);
   const [template, setTemplate] = useState(post.template);
   const [contentType, setContentType] = useState(post.contentType);
@@ -115,14 +121,14 @@ export function PostEditor({ post, mainImage }: { post: Post; mainImage: string 
       <section className="card space-y-3 p-4">
         <p className="text-sm font-semibold">Slide ({slides.length})</p>
         {slides.map((s, i) => (
-          <fieldset key={i} className="space-y-2 rounded-lg border border-line p-3">
+          <fieldset key={i} className="min-w-0 space-y-2 rounded-lg border border-line p-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[11px] font-semibold text-muted">#{i + 1}</span>
               <select
                 value={s.kind}
                 onChange={(e) => {
                   const k = e.target.value as SlideKind;
-                  setSlide(i, { ...blank(k, i), headline: s.headline, body: s.body, image: s.image, kind: k });
+                  setSlide(i, { ...blank(k, i, catalog), headline: s.headline, body: s.body, image: s.image, kind: k });
                 }}
                 className="input !w-auto !py-1 text-[12px]"
               >
@@ -168,6 +174,22 @@ export function PostEditor({ post, mainImage }: { post: Post; mainImage: string 
                 <input value={s.lang ?? ""} onChange={(e) => setSlide(i, { lang: e.target.value })} className="input !w-40 !py-1 font-mono text-[12px]" placeholder="bahasa (bash, tsx…)" />
               </div>
             )}
+            {s.kind === "product" && (
+              <div className="flex flex-wrap items-center gap-2">
+                <select value={s.productId ?? ""} onChange={(e) => setSlide(i, { productId: Number(e.target.value) || undefined })} className="input !w-auto min-w-0 flex-1 !py-1.5 text-[12px]">
+                  <option value="">— pilih produk katalog —</option>
+                  {catalog.map((c) => <option key={c.id} value={c.id}>{c.name.slice(0, 70)}{c.price ? ` · ${formatPrice(c.price, c.currency)}` : ""}{c.active ? "" : " (nonaktif)"}</option>)}
+                </select>
+                <label className="flex items-center gap-1 text-[11px] text-muted">
+                  no.
+                  <input type="number" min={0} value={s.step ?? ""} onChange={(e) => setSlide(i, { step: e.target.value === "" || e.target.value === "0" ? undefined : Number(e.target.value) })} className="input !w-16 !py-1 text-[12px]" placeholder="—" />
+                </label>
+                <p className="w-full text-[11px] text-dim">Harga, diskon, rating, terjual & foto diambil dari katalog — ubah di halaman Jualan.</p>
+              </div>
+            )}
+            {s.kind === "compare" && (
+              <CompareEditor slide={s} catalog={catalog} onChange={(patch) => setSlide(i, patch)} />
+            )}
             <SlideImagePicker slide={s} pool={pool} mainImage={mainImage} onChange={(image) => setSlide(i, { image })} />
           </fieldset>
         ))}
@@ -180,7 +202,7 @@ export function PostEditor({ post, mainImage }: { post: Post; mainImage: string 
               onClick={() => {
                 const ctaAt = slides.findIndex((x) => x.kind === "cta");
                 const steps = slides.filter((x) => x.kind === "step").length;
-                const ns = blank(k.key, steps + 1);
+                const ns = blank(k.key, steps + 1, catalog);
                 const n = [...slides];
                 n.splice(ctaAt >= 0 && k.key !== "cta" ? ctaAt : n.length, 0, ns);
                 setSlides(n);
@@ -221,6 +243,16 @@ export function PostEditor({ post, mainImage }: { post: Post; mainImage: string 
         <Field label="X" hint="Kosong = judul">
           <textarea value={pt.x ?? ""} onChange={(e) => { setPt({ ...pt, x: e.target.value }); touch(); }} rows={2} className="input" />
         </Field>
+        {(post.productIds.length > 0 || pt.tiktok || pt.wa) && (
+          <>
+            <Field label="TikTok / Shopee Video / Reels" hint="Kosong = paragraf pertama caption + hashtag">
+              <textarea value={pt.tiktok ?? ""} onChange={(e) => { setPt({ ...pt, tiktok: e.target.value }); touch(); }} rows={3} className="input" />
+            </Field>
+            <Field label="WhatsApp / Telegram" hint="Link produk /p/… di dalam teks dicatat sebagai klik kanal 'wa'.">
+              <textarea value={pt.wa ?? ""} onChange={(e) => { setPt({ ...pt, wa: e.target.value }); touch(); }} rows={6} className="input" />
+            </Field>
+          </>
+        )}
       </section>
 
       <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-panel/95 p-3 shadow-lg backdrop-blur">
@@ -258,14 +290,58 @@ function Thumb({ src, active, onClick, label }: { src: string | null; active: bo
   );
 }
 
+function CompareEditor({ slide, catalog, onChange }: { slide: Slide; catalog: CatalogItem[]; onChange: (p: Partial<Slide>) => void }) {
+  const ids = slide.productIds ?? [];
+  const items = slide.items ?? [];
+  return (
+    <div className="space-y-2 rounded-md bg-panel-2 p-2">
+      <p className="text-[11px] text-dim">Pilih 2–3 produk. Harga & rating dari katalog; isi “cocok untuk” per produk.</p>
+      {[0, 1, 2].map((k) => (
+        <div key={k} className="flex flex-wrap items-center gap-1.5">
+          <span className="w-4 text-[11px] text-muted">{k + 1}</span>
+          <select
+            value={ids[k] ?? ""}
+            onChange={(e) => {
+              const n = [...ids];
+              const v = Number(e.target.value);
+              if (v) n[k] = v;
+              else n.splice(k, 1);
+              onChange({ productIds: n.filter(Boolean).slice(0, 3) });
+            }}
+            className="input !w-auto min-w-0 flex-1 !py-1 text-[12px]"
+          >
+            <option value="">{k < 2 ? "— pilih produk —" : "— (opsional) —"}</option>
+            {catalog.map((c) => <option key={c.id} value={c.id}>{c.name.slice(0, 60)}{c.price ? ` · ${formatPrice(c.price, c.currency)}` : ""}</option>)}
+          </select>
+          <input
+            value={items[k] ?? ""}
+            onChange={(e) => {
+              const n = [...items];
+              while (n.length <= k) n.push("");
+              n[k] = e.target.value;
+              onChange({ items: n });
+            }}
+            placeholder="cocok untuk…"
+            className="input !w-auto min-w-0 flex-1 !py-1 text-[12px]"
+          />
+          <label className="flex items-center gap-1 text-[11px] text-muted">
+            <input type="radio" checked={slide.pick === k + 1} onChange={() => onChange({ pick: k + 1 })} /> pilihan
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SlideImagePicker({ slide, pool, mainImage, onChange }: { slide: Slide; pool: string[]; mainImage: string | null; onChange: (v: string | null | undefined) => void }) {
-  const auto = slide.kind === "cover" ? mainImage : null;
+  const auto = slide.kind === "cover" ? mainImage : slide.kind === "product" ? "produk" : null;
   const options = useMemo(() => [...new Set([...(mainImage ? [mainImage] : []), ...pool])], [pool, mainImage]);
+  if (slide.kind === "compare") return null;
   return (
     <div>
       <p className="mb-1 text-[11px] text-dim">Gambar slide</p>
       <div className="flex gap-1.5 overflow-x-auto pb-1">
-        <Thumb src={null} label={auto ? "Otomatis" : "Otomatis (tanpa)"} active={slide.image === undefined} onClick={() => onChange(undefined)} />
+        <Thumb src={null} label={auto === "produk" ? "Foto produk" : auto ? "Otomatis" : "Otomatis (tanpa)"} active={slide.image === undefined} onClick={() => onChange(undefined)} />
         <Thumb src={null} label="Tanpa" active={slide.image === null} onClick={() => onChange(null)} />
         {options.map((ref) => (
           <Thumb key={ref} src={imageSrc(ref, bp)} active={slide.image === ref} onClick={() => onChange(ref)} />

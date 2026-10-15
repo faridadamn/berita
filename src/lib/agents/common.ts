@@ -1,6 +1,6 @@
 import "server-only";
 import { db, schema } from "@/db";
-import { brand } from "../config";
+import { getBrandKit } from "../brand-kit";
 import type { CompleteResult } from "../ai/providers";
 import type { RunDetail } from "@/db/schema";
 
@@ -58,8 +58,10 @@ export async function brainFor(agent: AgentName) {
   return "\n\nPEDOMAN REDAKSI (wajib diikuti):\n" + relevant.map((n) => `## ${n.title}\n${n.content}`).join("\n\n");
 }
 
-export const audience = () =>
-  `Akun Instagram ${brand.handle} (${brand.name}) — merangkum berita AI, marketing, dan media sosial untuk audiens Indonesia (marketer, kreator, pemilik UMKM).`;
+export async function audience() {
+  const k = await getBrandKit();
+  return `Akun ${k.handle} (${k.name}) — ${k.about}`;
+}
 
 /** HTML → teks polos. */
 export function stripHtml(html: string) {

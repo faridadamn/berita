@@ -28,7 +28,7 @@ export async function runAnalis() {
     .limit(30);
 
   const system =
-    `Kamu adalah Analis di redaksi konten. ${audience()}\n` +
+    `Kamu adalah Analis di redaksi konten. ${await audience()}\n` +
     `Tugasmu: menilai potensi tiap topik berita untuk jadi postingan carousel Instagram yang disimpan & dibagikan.\n` +
     `Skor 0-100. Pertimbangkan: relevansi untuk audiens, dampak praktis, kebaruan, tokoh/brand besar, potensi diskusi.\n` +
     `Beri skor rendah (<40) untuk: topik yang sama/serupa dengan postingan yang sudah ada, topik duplikat dalam daftar ini (pilih satu saja), ` +

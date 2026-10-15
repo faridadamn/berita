@@ -6,10 +6,10 @@ export type TextSource = {
   headline: string;
   caption: string;
   hashtags: string[];
-  platformText: { threads?: string; x?: string; linkedin?: string };
+  platformText: { threads?: string; x?: string; linkedin?: string; tiktok?: string; wa?: string };
 };
 
-export const LIMITS = { instagram: 2200, threads: 500, x: 280, linkedin: 3000 } as const;
+export const LIMITS = { instagram: 2200, threads: 500, x: 280, linkedin: 3000, tiktok: 2200, wa: 4000 } as const;
 
 /** Panjang ala X: URL = 23, karakter di luar Latin/umum (emoji, CJK) = 2. */
 export function xLength(s: string) {
@@ -65,4 +65,18 @@ export function composeX(src: TextSource, link: string | null) {
   const budget = LIMITS.x - (link ? 25 : 0);
   while (xLength(body) > budget && body.length > 1) body = cut(body, [...body].length - 5);
   return body + tail;
+}
+
+/** TikTok / Shopee Video / Reels: teks khusus, atau caption IG dengan hashtag. */
+export function composeTikTok(src: TextSource) {
+  const t = src.platformText.tiktok?.trim();
+  if (t) return cut(t, LIMITS.tiktok);
+  return cut(`${firstParagraph(src.caption)}\n\n${src.hashtags.slice(0, 5).join(" ")}`.trim(), LIMITS.tiktok);
+}
+
+/** WhatsApp / Telegram: teks khusus (link produk sudah di dalamnya), atau ringkasan + link. */
+export function composeWa(src: TextSource, link: string | null) {
+  const t = src.platformText.wa?.trim();
+  if (t) return cut(t, LIMITS.wa);
+  return `*${src.headline}*\n\n${firstParagraph(src.caption)}${link ? `\n\n${link}?c=wa` : ""}`;
 }

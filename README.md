@@ -17,6 +17,8 @@ Pembaca diarahkan ke artikel asli lewat shortlink `/s/:kode` (klik dihitung) dan
 | 1 | Dashboard, login, skema DB | ✅ |
 | 2 | Postgres (Neon/lokal), AI multi-provider + fallback, agen Scout/Analis/Copywriter, penjadwal, admin (provider, sumber, tim, Brain, pengaturan) | ✅ |
 | 3 | Designer (render JPG), auto-post Instagram / Threads / X, salin manual, insights, perpanjang token | ✅ |
+| 4 | LinkedIn, 7 template + jenis slide, gambar per slide, sumber medsos, tutorial/review | ✅ |
+| 5 | Brand Kit, mode jualan (katalog affiliate, konten promo/rekomendasi/perbandingan, link pelacak per kanal, etalase) | ✅ |
 
 ## Mulai cepat (lokal)
 
@@ -82,10 +84,29 @@ Tombol **Cari topik sekarang** menjalankan satu putaran langsung (abaikan jam ke
 | Review | Cover → apa itu → daftar fitur → cara mulai (kode) → verdict (nilai /10, kelebihan, kekurangan) → CTA |
 | Tips | Cover → 4-7 tips bernomor → CTA |
 | Opini | Cover → 3-4 poin argumen → CTA |
+| Promo / Racun | Cover (foto produk) → masalah → kenapa worth it → kartu produk → CTA |
+| Rekomendasi | Cover → kartu produk bernomor per produk → CTA |
+| Perbandingan | Cover → tabel perbandingan → kartu produk pilihan + alasan → CTA |
 
 Analis menyarankan jenis per topik; sumber bisa punya jenis bawaan (mis. GitHub → Review). Di halaman review ada **Tulis ulang dengan AI** untuk mengganti jenis/arahan.
 
 **Buat Konten** (menu): tempel link — artikel, **repo GitHub** (README, bintang, bahasa, lisensi dibaca otomatis), atau **video YouTube** — atau tulis ide saja (tanpa sumber: wajib cek fakta). Draft langsung ditulis & dibuka di halaman review.
+
+## Brand Kit
+
+**Admin → Brand Kit**: nama, handle, deskripsi akun (dipakai AI), 4 warna (utama, kedua, latar, teks + palet siap pakai), font judul & isi (Inter, Plus Jakarta Sans, Poppins, Montserrat, Space Grotesk, Anton, Bebas Neue, DM Serif Display, Playfair Display, atau **upload font sendiri** .ttf/.otf/.woff), logo (PNG/SVG, di header/footer/penutup), tata letak cover, ikon poin, dan sudut membulat. Preview langsung semua jenis slide.
+
+Template **Brand Kit** 100% mengikuti kit. Opsi *terapkan ke semua template* memakai font, warna aksen, dan/atau logo brand di 7 template lain. Setelah kit diubah, post yang terdampak ditandai "perlu render ulang". Nama/handle di kit menggantikan `NEXT_PUBLIC_BRAND_*` (env tetap jadi nilai awal).
+
+## Mode jualan (affiliate)
+
+Menu **Jualan**:
+
+- **Katalog produk** — tambah dari link (Tokopedia, Blibli, Amazon, toko Shopify/WooCommerce biasanya terbaca otomatis lewat JSON-LD; Shopee & TikTok Shop sering memblokir bot → isi manual), atau **impor CSV** (`nama, link, link affiliate, harga, harga coret, rating, terjual, gambar, kategori, catatan, promo`). Isi *catatan untuk AI* dengan pengalaman pribadi & hal yang wajib/dilarang disebut.
+- **Konten jualan** — centang produk lalu pilih **Promo/Racun** (1 produk), **Rekomendasi** (2–7), atau **Perbandingan** (2–3). Slide baru: **kartu produk** (foto, harga, coret + badge diskon, rating, terjual, toko) dan **tabel perbandingan** (dengan "pilihan kami"). Harga & rating diambil dari katalog saat render — bukan ditulis AI — jadi ubah harga di katalog → slide ikut ditandai perlu render ulang.
+- **Teks per kanal** — IG, Threads, X, LinkedIn (auto-post seperti biasa) plus salin manual **TikTok / Shopee Video / Reels** dan **WhatsApp / Telegram** (sudah berisi link produk).
+- **Link pelacak** — tiap produk punya `/p/<kode>?c=<kanal>` → link affiliate; klik dicatat per kanal (bio, instagram, threads, x, linkedin, tiktok, wa, telegram, …) dan per post. Shortlink post jualan `/s/<kode>` → langsung ke produk (1 produk) atau ke halaman daftar `/baca/<kode>` (beberapa produk). `/baca` punya tab **Etalase** berisi semua produk aktif.
+- **Pengungkapan affiliate** otomatis ditambahkan ke caption (bisa diubah di halaman Jualan, admin).
 
 ## Sumber topik
 
@@ -93,7 +114,7 @@ RSS/Atom biasa, plus preset: **Reddit**, **YouTube**, **Hacker News**, **Product
 
 ## Designer (render gambar)
 
-Tiap slide dirender jadi JPEG 1080×1350 (4:5 — pas untuk IG, LinkedIn, Threads). 7 template: **Stabilo, Putih editorial, Foto penuh, Minimal (LinkedIn), Gelap tech, Split, Koran**, dan 7 jenis slide: cover, isi, langkah, daftar, kode, verdict, CTA. Preview di dashboard memakai renderer yang sama, dan pemilih template menampilkan thumbnail asli tiap template.
+Tiap slide dirender jadi JPEG 1080×1350 (4:5 — pas untuk IG, LinkedIn, Threads). 8 template: **Brand Kit, Stabilo, Putih editorial, Foto penuh, Minimal (LinkedIn), Gelap tech, Split, Koran**, dan 9 jenis slide: cover, isi, langkah, daftar, kode, verdict, CTA, kartu produk, perbandingan produk. Preview di dashboard memakai renderer yang sama, dan pemilih template menampilkan thumbnail asli tiap template.
 
 **Gambar per slide**: tiap post punya pustaka gambar (otomatis dari artikel: og:image + gambar di dalam artikel; gambar OpenGraph repo GitHub; thumbnail YouTube). Di editor kamu bisa memilih gambar berbeda untuk tiap slide, **mengunggah** gambar sendiri, menempel URL, **Ambil dari artikel**, atau **cari foto stok Pexels** (`PEXELS_API_KEY`). Dibuat otomatis setelah Copywriter, dan diulang kalau isi slide/template diedit (**Simpan & render ulang**). Gambar disimpan di Postgres (tabel `renders`) dan disajikan publik di `/m/<kode>/<n>.jpg`. Di halaman review ada **Download semua** (ZIP + caption) dan per slide.
 

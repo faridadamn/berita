@@ -50,7 +50,7 @@ export type PostEdit = {
   slides: Slide[];
   caption: string;
   hashtags: string;
-  platformText: { threads?: string; x?: string; linkedin?: string };
+  platformText: { threads?: string; x?: string; linkedin?: string; tiktok?: string; wa?: string };
 };
 
 const KINDS = new Set(SLIDE_KINDS.map((k) => k.key));
@@ -71,10 +71,25 @@ function normalizeSlides(input: unknown, pool: string[]): Slide[] {
       ...(kind === "step" ? { step: Math.max(1, Math.round(Number(r.step) || 1)) } : {}),
       ...(kind === "list" || kind === "verdict" ? { items: list(r.items) ?? [] } : {}),
       ...(kind === "verdict" ? { cons: list(r.cons) ?? [], ...(Number.isFinite(rating) && String(r.rating ?? "") !== "" ? { rating: Math.max(0, Math.min(10, rating)) } : {}) } : {}),
+      ...(kind === "product" ? { ...(Number.isInteger(Number(r.productId)) && Number(r.productId) > 0 ? { productId: Number(r.productId) } : {}), ...(Number(r.step) > 0 ? { step: Math.round(Number(r.step)) } : {}) } : {}),
+      ...(kind === "compare"
+        ? {
+            productIds: (Array.isArray(r.productIds) ? r.productIds.map(Number).filter((n) => Number.isInteger(n) && n > 0) : []).slice(0, 3),
+            items: Array.isArray(r.items) ? r.items.map((x) => str(x, 120).trim()).slice(0, 3) : [],
+            ...(Number(r.pick) > 0 ? { pick: Math.round(Number(r.pick)) } : {}),
+          }
+        : {}),
       ...((kind === "code" || kind === "step") && str(r.code, 2000).trim() ? { code: str(r.code, 2000).replace(/\s+$/, ""), lang: str(r.lang, 20).trim() || undefined } : {}),
       ...(img !== undefined ? { image: img } : {}),
     };
   });
+}
+
+/** Produk post = produk di slide (urut kemunculan); tanpa slide produk → daftar lama tetap. */
+function productIdsFrom(slides: Slide[], current: number[]) {
+  const ids: number[] = [];
+  for (const s of slides) for (const id of s.kind === "product" && s.productId ? [s.productId] : s.kind === "compare" ? (s.productIds ?? []) : []) if (!ids.includes(id)) ids.push(id);
+  return ids.length ? ids : current;
 }
 
 /** Simpan seluruh isi editor post. `render` = langsung render ulang gambar. */
@@ -99,8 +114,11 @@ export async function savePost(id: number, data: PostEdit, render: boolean): Pro
       threads: str(data.platformText?.threads, 500).trim(),
       x: str(data.platformText?.x, 280).trim(),
       linkedin: str(data.platformText?.linkedin, 3000).trim(),
+      tiktok: str(data.platformText?.tiktok, 2200).trim(),
+      wa: str(data.platformText?.wa, 4000).trim(),
     },
     slides,
+    productIds: productIdsFrom(slides, post.productIds ?? []),
   });
   let msg = "Tersimpan";
   if (render) {

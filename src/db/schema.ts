@@ -2,7 +2,7 @@ import {
   pgTable, pgEnum, serial, text, integer, boolean, timestamp, jsonb, real, varchar, index, uniqueIndex, customType,
 } from "drizzle-orm/pg-core";
 
-import type { ContentType, Slide } from "../lib/content";
+import type { ContentType, ProductPlatform, Slide } from "../lib/content";
 export type { Slide };
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
@@ -84,7 +84,15 @@ export const topics = pgTable("topics", {
 }, (t) => [index("topics_status_idx").on(t.status), index("topics_fetched_idx").on(t.fetchedAt)]);
 
 /** Teks khusus per platform (IG pakai caption + hashtag). Link shortlink ditambahkan otomatis saat publish. */
-export type PlatformText = { threads?: string; x?: string; linkedin?: string };
+export type PlatformText = {
+  threads?: string;
+  x?: string;
+  linkedin?: string;
+  /** caption TikTok / Shopee Video / Reels (salin manual) */
+  tiktok?: string;
+  /** pesan WhatsApp / Telegram (salin manual, dengan link langsung) */
+  wa?: string;
+};
 
 /** Draft post hasil Copywriter (+ Designer di tahap 3), masuk antrian review. */
 export const posts = pgTable("posts", {
@@ -102,6 +110,8 @@ export const posts = pgTable("posts", {
   /** pustaka gambar post (URL atau asset:<id>) untuk dipilih per slide */
   images: jsonb("images").$type<string[]>().notNull().default([]),
   platformText: jsonb("platform_text").$type<PlatformText>().notNull().default({}),
+  /** mode jualan: produk katalog yang dipromosikan post ini */
+  productIds: jsonb("product_ids").$type<number[]>().notNull().default([]),
   renderedAt: timestamp("rendered_at", { withTimezone: true }),
   /** sidik isi saat terakhir dirender; beda dengan isi sekarang = perlu render ulang */
   renderHash: text("render_hash"),
@@ -180,6 +190,44 @@ export const clicks = pgTable("clicks", {
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   referrer: text("referrer"),
 }, (t) => [index("clicks_post_idx").on(t.postId)]);
+
+/** Katalog produk affiliate (mode jualan). */
+export const products = pgTable("products", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  /** link halaman produk asli (untuk ambil data) */
+  url: text("url").notNull().default(""),
+  /** link affiliate tujuan klik; kosong = pakai url */
+  affiliateUrl: text("affiliate_url").notNull().default(""),
+  platform: text("platform").$type<ProductPlatform>().notNull().default("other"),
+  price: integer("price"),
+  originalPrice: integer("original_price"),
+  currency: varchar("currency", { length: 8 }).notNull().default("IDR"),
+  rating: real("rating"),
+  sold: integer("sold"),
+  /** URL gambar atau asset:<id>; [0] = foto utama */
+  images: jsonb("images").$type<string[]>().notNull().default([]),
+  description: text("description").notNull().default(""),
+  category: text("category").notNull().default(""),
+  /** catatan pribadi untuk AI: kelebihan, target pembeli, promo, dll */
+  notes: text("notes").notNull().default(""),
+  /** kode voucher / promo yang boleh disebut */
+  promo: text("promo").notNull().default(""),
+  active: boolean("active").notNull().default(true),
+  shortCode: varchar("short_code", { length: 16 }).notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Klik link produk /p/:code → link affiliate. `channel` dari ?c= (ig, wa, tiktok, …). */
+export const productClicks = pgTable("product_clicks", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+  postId: integer("post_id").references(() => posts.id, { onDelete: "set null" }),
+  channel: varchar("channel", { length: 24 }),
+  referrer: text("referrer"),
+  at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("product_clicks_product_idx").on(t.productId), index("product_clicks_at_idx").on(t.at)]);
 
 /** Log aktivitas agen + biaya AI. */
 export const agentRuns = pgTable("agent_runs", {

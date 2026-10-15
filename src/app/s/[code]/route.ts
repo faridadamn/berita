@@ -1,28 +1,31 @@
 import { NextResponse } from "next/server";
-import { appUrl } from "@/lib/channels";
 import { getPostByShortCode, recordClick } from "@/lib/data";
-
-/** Asal publik (bukan host internal di belakang reverse proxy). */
-function publicBase(req: Request) {
-  const fromEnv = appUrl();
-  if (fromEnv) return fromEnv;
-  const h = req.headers;
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  return host ? `${proto}://${host}${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}` : new URL(req.url).origin;
-}
-
-const BOT = /bot|crawl|spider|preview|facebookexternalhit|slurp|whatsapp|telegram|discord|skype|embedly|vkshare|quora link/i;
+import { getProductsByIds } from "@/lib/products";
+import { isBotOrPrefetch, publicBase } from "@/lib/public-url";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Shortlink post. Berita → artikel asli. Post jualan: 1 produk → link affiliate (lewat /p/ supaya
+ * klik produk tercatat), beberapa produk → halaman daftar /baca/:code.
+ */
 export async function GET(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
+  const base = publicBase(req);
   const post = await getPostByShortCode(code);
-  if (!post || !/^https?:\/\//.test(post.sourceUrl)) return NextResponse.redirect(`${publicBase(req)}/baca`, 302);
-  // jangan hitung bot / preview link (WhatsApp, Telegram, crawler) dan prefetch browser
-  const ua = req.headers.get("user-agent") ?? "";
-  const prefetch = req.headers.get("purpose") === "prefetch" || req.headers.get("sec-purpose")?.includes("prefetch") || req.headers.has("next-router-prefetch");
-  if (!BOT.test(ua) && !prefetch) await recordClick(post.id, req.headers.get("referer"));
+  if (!post) return NextResponse.redirect(`${base}/baca`, 302);
+  const channel = (new URL(req.url).searchParams.get("c") ?? "link").replace(/[^\w-]/g, "").slice(0, 20) || "link";
+
+  if (post.productIds.length) {
+    if (!isBotOrPrefetch(req)) await recordClick(post.id, req.headers.get("referer"));
+    if (post.productIds.length === 1) {
+      const [p] = await getProductsByIds(post.productIds);
+      if (p) return NextResponse.redirect(`${base}/p/${p.shortCode}?c=${channel}&post=${post.id}`, 302);
+    }
+    return NextResponse.redirect(`${base}/baca/${post.shortCode}?c=${channel}`, 302);
+  }
+
+  if (!/^https?:\/\//.test(post.sourceUrl)) return NextResponse.redirect(`${base}/baca`, 302);
+  if (!isBotOrPrefetch(req)) await recordClick(post.id, req.headers.get("referer"));
   return NextResponse.redirect(post.sourceUrl, 302);
 }
