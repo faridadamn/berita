@@ -1,3 +1,4 @@
+import { jsonrepair } from "jsonrepair";
 /**
  * Lapisan AI multi-provider (pola sama dengan satsh): beberapa profil provider disimpan,
  * yang aktif membentuk rantai fallback sesuai urutan. Kalau satu error / kena limit,
@@ -34,6 +35,8 @@ export type CompleteInput = {
 
 export type CompleteResult = {
   text: string;
+  /** jawaban berhenti karena batas token (kemungkinan JSON terpotong) */
+  truncated: boolean;
   tokensIn: number;
   tokensOut: number;
   costUsd: number;
@@ -43,7 +46,17 @@ export type CompleteResult = {
   fallbackErrors: string[];
 };
 
-export class AiError extends Error {}
+export class AiError extends Error {
+  /** teks mentah dari model (kalau ada) — disimpan ke log untuk debugging */
+  raw?: string;
+  constructor(message: string, raw?: string) {
+    super(message);
+    this.raw = raw;
+  }
+}
+
+/** Provider OpenAI-compatible yang menolak response_format → jangan dikirim lagi (per proses). */
+const noJsonMode = new Set<string>();
 
 export const presets: { label: string; kind: ProviderKind; baseUrl: string; model: string }[] = [
   { label: "Kenari.id", kind: "openai", baseUrl: "https://kenari.id/v1", model: "gemini-3-8-flash" },
@@ -134,7 +147,7 @@ async function callOne(p: ProviderConfig, input: CompleteInput) {
     if (!cand) throw new AiError(`Gemini tidak menjawab (${j.promptFeedback?.blockReason ?? "tanpa kandidat"})`);
     const text = (cand.content?.parts ?? []).map((x: any) => (x.thought ? "" : x.text ?? "")).join("");
     if (!text) throw new AiError(`Gemini jawaban kosong (${cand.finishReason ?? "?"})`);
-    return { text, tokensIn: j.usageMetadata?.promptTokenCount ?? 0, tokensOut: j.usageMetadata?.candidatesTokenCount ?? 0 };
+    return { text, truncated: cand.finishReason === "MAX_TOKENS", tokensIn: j.usageMetadata?.promptTokenCount ?? 0, tokensOut: j.usageMetadata?.candidatesTokenCount ?? 0 };
   }
 
   if (p.kind === "anthropic") {
@@ -148,12 +161,13 @@ async function callOne(p: ProviderConfig, input: CompleteInput) {
     });
     const text = (j.content ?? []).filter((b: any) => b.type === "text").map((b: any) => b.text).join("");
     if (!text) throw new AiError(`Claude jawaban kosong (${j.stop_reason ?? "?"})`);
-    return { text, tokensIn: j.usage?.input_tokens ?? 0, tokensOut: j.usage?.output_tokens ?? 0 };
+    return { text, truncated: j.stop_reason === "max_tokens", tokensIn: j.usage?.input_tokens ?? 0, tokensOut: j.usage?.output_tokens ?? 0 };
   }
 
   // OpenAI-compatible
   const base = trimSlash(p.baseUrl || "https://api.openai.com/v1");
-  const j = await post(`${base}/chat/completions`, p.apiKey ? { authorization: `Bearer ${p.apiKey}` } : {}, {
+  const key = `${base}|${p.model}`;
+  const body = (jsonMode: boolean) => ({
     model: p.model,
     messages: [
       { role: "system", content: input.system },
@@ -162,11 +176,26 @@ async function callOne(p: ProviderConfig, input: CompleteInput) {
     max_tokens: maxTokens,
     temperature,
     stream: false,
+    // mode JSON bikin model tidak bisa mengirim JSON rusak (kalau provider mendukung)
+    ...(jsonMode ? { response_format: { type: "json_object" } } : {}),
   });
-  const msg = j.choices?.[0]?.message;
+  const auth: Record<string, string> = p.apiKey ? { authorization: `Bearer ${p.apiKey}` } : {};
+  let j: any;
+  const tryJson = !!input.json && !noJsonMode.has(key);
+  try {
+    j = await post(`${base}/chat/completions`, auth, body(tryJson));
+  } catch (e) {
+    // provider tidak paham response_format → ulangi tanpa, dan ingat
+    if (tryJson && /HTTP 4\d\d/.test((e as Error).message) && /response_format|json|unsupported|unknown|invalid/i.test((e as Error).message)) {
+      noJsonMode.add(key);
+      j = await post(`${base}/chat/completions`, auth, body(false));
+    } else throw e;
+  }
+  const choice = j.choices?.[0];
+  const msg = choice?.message;
   const text = typeof msg?.content === "string" ? msg.content : Array.isArray(msg?.content) ? msg.content.map((c: any) => c.text ?? "").join("") : "";
-  if (!text) throw new AiError(`Jawaban kosong (${j.choices?.[0]?.finish_reason ?? "?"})`);
-  return { text, tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0 };
+  if (!text) throw new AiError(`Jawaban kosong (${choice?.finish_reason ?? "?"})`);
+  return { text, truncated: choice?.finish_reason === "length", tokensIn: j.usage?.prompt_tokens ?? 0, tokensOut: j.usage?.completion_tokens ?? 0 };
 }
 
 /** Coba tiap provider sesuai urutan; yang pertama berhasil dipakai. */
@@ -209,15 +238,33 @@ export async function listModels(p: Pick<ProviderConfig, "kind" | "baseUrl" | "a
   return (j.data ?? []).map((m: any) => m.id).sort();
 }
 
-/** Ambil objek JSON dari teks model (tahan terhadap ```json fence, teks pembuka, dll). */
+/**
+ * Ambil objek JSON dari teks model. Tahan terhadap: ```json fence, teks pembuka/penutup,
+ * tanda kutip tidak di-escape, koma kurang/berlebih, komentar, dan JSON yang terpotong
+ * (diperbaiki dengan jsonrepair).
+ */
 export function parseJson<T = unknown>(text: string): T {
-  const t = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "");
+  const t = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
   try {
     return JSON.parse(t) as T;
   } catch {
-    const start = t.search(/[[{]/);
-    const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
-    if (start >= 0 && end > start) return JSON.parse(t.slice(start, end + 1)) as T;
-    throw new AiError(`Jawaban AI bukan JSON: ${t.slice(0, 160)}`);
+    /* lanjut perbaikan */
   }
+  const start = t.search(/[[{]/);
+  const end = Math.max(t.lastIndexOf("}"), t.lastIndexOf("]"));
+  const candidates = [start >= 0 && end > start ? t.slice(start, end + 1) : null, start >= 0 ? t.slice(start) : null, t].filter(Boolean) as string[];
+  for (const c of candidates) {
+    try {
+      return JSON.parse(c) as T;
+    } catch {
+      /* coba repair */
+    }
+    try {
+      const v = JSON.parse(jsonrepair(c));
+      if (v && typeof v === "object") return v as T;
+    } catch {
+      /* kandidat berikutnya */
+    }
+  }
+  throw new AiError(`Jawaban AI bukan JSON valid`, text);
 }

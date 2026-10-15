@@ -56,12 +56,12 @@ export function SlideViewer({ post, stale }: { post: Post; stale: boolean }) {
           <SlidePreview post={post} slide={post.slides[i]} index={i} />
         )}
         {i > 0 && (
-          <button onClick={() => setI(i - 1)} className="absolute top-1/2 left-2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/70" aria-label="Sebelumnya">
+          <button onClick={() => setI(i - 1)} className="absolute top-1/2 left-2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/70 text-white" aria-label="Sebelumnya">
             <ChevronLeft size={16} />
           </button>
         )}
         {i < n - 1 && (
-          <button onClick={() => setI(i + 1)} className="absolute top-1/2 right-2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/70" aria-label="Berikutnya">
+          <button onClick={() => setI(i + 1)} className="absolute top-1/2 right-2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/70 text-white" aria-label="Berikutnya">
             <ChevronRight size={16} />
           </button>
         )}

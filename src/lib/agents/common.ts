@@ -2,8 +2,9 @@ import "server-only";
 import { db, schema } from "@/db";
 import { brand } from "../config";
 import type { CompleteResult } from "../ai/providers";
+import type { RunDetail } from "@/db/schema";
 
-export type AgentName = "scout" | "analis" | "copywriter" | "designer" | "publisher";
+export type AgentName = "scout" | "analis" | "copywriter" | "designer" | "publisher" | "system";
 
 /** Akumulasi pemakaian AI dalam satu putaran agen. */
 export class Usage {
@@ -13,7 +14,9 @@ export class Usage {
   provider: string | null = null;
   model: string | null = null;
   fallbacks = new Set<string>();
+  calls = 0;
   add(r: CompleteResult) {
+    this.calls++;
     for (const e of r.fallbackErrors) this.fallbacks.add(e.split(":")[0]);
     this.tokensIn += r.tokensIn;
     this.tokensOut += r.tokensOut;
@@ -23,7 +26,9 @@ export class Usage {
   }
 }
 
-export async function logRun(agent: AgentName, message: string, opts: { ok?: boolean; usage?: Usage } = {}) {
+const clip = (s: string | undefined, n: number) => (s && s.length > n ? s.slice(0, n) + `… (+${s.length - n} karakter)` : s);
+
+export async function logRun(agent: AgentName, message: string, opts: { ok?: boolean; usage?: Usage; detail?: RunDetail } = {}) {
   const u = opts.usage;
   await db().insert(schema.agentRuns).values({
     agent,
@@ -34,6 +39,14 @@ export async function logRun(agent: AgentName, message: string, opts: { ok?: boo
     tokensIn: u?.tokensIn ?? 0,
     tokensOut: u?.tokensOut ?? 0,
     costUsd: u?.costUsd ?? 0,
+    detail: opts.detail
+      ? {
+          ...opts.detail,
+          raw: clip(opts.detail.raw, 6000),
+          stack: clip(opts.detail.stack, 2000),
+          items: opts.detail.items?.map((i) => ({ ...i, raw: clip(i.raw, 3000) })),
+        }
+      : null,
   });
 }
 

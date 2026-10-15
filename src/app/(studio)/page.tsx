@@ -82,7 +82,7 @@ export default async function Overview() {
           <p className="flex items-center gap-2 text-sm font-semibold">
             <span className="size-1.5 rounded-full bg-ok" /> Aktivitas Redaksi
           </p>
-          <span className="text-[11px] text-dim">ambang skor {s.threshold}</span>
+          <Link href="/log" className="text-[11px] text-muted underline hover:text-fg">Lihat semua log →</Link>
         </div>
         {activity.length ? (
           <ul>

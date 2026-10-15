@@ -69,7 +69,17 @@ export default async function RadarPage({ searchParams }: { searchParams: Promis
                   <p className="mt-0.5 text-[11px] text-dim">
                     {t.sourceName} · {t.category} · {timeAgo(t.fetchedAt)} · <span className="text-muted">{statusText[t.status]}</span>
                   </p>
-                  {t.scoreReason && <p className="mt-1 text-[12px] text-muted">{t.scoreReason}</p>}
+                  {t.scoreReason && (
+                    <p className={`mt-1 text-[12px] ${t.status === "failed" ? "text-danger" : "text-muted"}`}>
+                      {t.scoreReason}
+                      {t.status === "failed" && (
+                        <>
+                          {" "}
+                          <Link href="/log?e=1&a=copywriter" className="text-muted underline">detail di Log</Link>
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <div className="flex shrink-0 gap-1">
                   {(t.status === "rejected" || t.status === "failed") && (

@@ -2,19 +2,22 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutGrid, Inbox, Radar, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut, UserRound, Share2,
+  LayoutGrid, Inbox, Radar, ScrollText, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut, UserRound, Share2,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
+import { ThemeToggle, type ThemePref } from "./theme-toggle";
 
-type Item = { href: string; label: string; Icon: typeof Inbox; badge?: number };
+type Item = { href: string; label: string; Icon: typeof Inbox; badge?: number; danger?: boolean };
 
 export function Nav({
-  brandName, handle, user, reviewCount, isAdmin,
+  brandName, handle, user, reviewCount, errorCount, isAdmin, theme,
 }: {
   brandName: string;
   handle: string;
   user: { name: string; role: string };
   reviewCount: number;
+  errorCount: number;
+  theme: ThemePref;
   isAdmin: boolean;
 }) {
   const path = usePathname();
@@ -25,6 +28,7 @@ export function Nav({
     { href: "/kalender", label: "Kalender", Icon: CalendarDays },
     { href: "/analitik", label: "Analitik", Icon: BarChart3 },
     { href: "/brain", label: "Brain", Icon: Brain },
+    { href: "/log", label: "Log", Icon: ScrollText, badge: errorCount, danger: true },
   ];
   const admin: Item[] = [
     { href: "/admin/sumber", label: "Sumber Topik", Icon: Rss },
@@ -45,7 +49,11 @@ export function Nav({
       <it.Icon size={15} />
       <span>{it.label}</span>
       {!!it.badge && (
-        <span className="ml-auto rounded-full bg-accent px-1.5 text-[10px] font-bold leading-4 text-accent-ink">
+        <span
+          className={`ml-auto rounded-full px-1.5 text-[10px] font-bold leading-4 ${
+            it.danger ? "bg-danger text-white" : "bg-accent text-accent-ink"
+          }`}
+        >
           {it.badge}
         </span>
       )}
@@ -73,7 +81,10 @@ export function Nav({
             <nav className="space-y-0.5">{admin.map((i) => link(i))}</nav>
           </>
         )}
-        <div className="card mt-auto flex items-center gap-2.5 p-2.5">
+        <div className="mt-auto mb-2">
+          <ThemeToggle initial={theme} />
+        </div>
+        <div className="card flex items-center gap-2.5 p-2.5">
           <span className="grid size-8 place-items-center rounded-full bg-panel-2 text-xs font-bold">
             {user.name[0]}
           </span>
@@ -93,11 +104,14 @@ export function Nav({
       <header className="sticky top-0 z-20 border-b border-line bg-bg/90 px-4 pt-4 backdrop-blur lg:hidden">
         <div className="flex items-start justify-between">
           {brandBlock}
-          <form action={logout}>
-            <button className="btn !p-2" aria-label="Keluar">
-              <LogOut size={14} />
-            </button>
-          </form>
+          <div className="flex items-center gap-2">
+            <ThemeToggle initial={theme} compact />
+            <form action={logout}>
+              <button className="btn !p-2" aria-label="Keluar">
+                <LogOut size={14} />
+              </button>
+            </form>
+          </div>
         </div>
         <nav className="-mx-4 mt-3 flex gap-1 overflow-x-auto px-4 pb-3">
           {[...main, ...(isAdmin ? admin : []), { href: "/akun", label: "Akun", Icon: UserRound }].map((i) => link(i, true))}

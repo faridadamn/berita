@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { count, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { complete, parseJson } from "../ai";
+import { AiError, completeJson } from "../ai";
 import { brand } from "../config";
 import { getSettings } from "../settings";
 import { UA, Usage, audience, brainFor, logRun, stripHtml } from "./common";
@@ -66,6 +66,7 @@ export async function runCopywriter() {
   const usage = new Usage();
   let drafted = 0;
   const failed: string[] = [];
+  const items: { label: string; error: string; raw?: string }[] = [];
 
   for (const [i, { t, sourceName }] of queue.entries()) {
     const source = sourceName ?? new URL(t.url).hostname.replace(/^www\./, "");
@@ -90,9 +91,13 @@ export async function runCopywriter() {
       (article.text ? `ISI ARTIKEL (potongan):\n${article.text}` : "(isi artikel tidak bisa diambil — tulis hanya dari judul & ringkasan, jangan mengarang detail)");
 
     try {
-      const r = await complete({ system, prompt, json: true, temperature: 0.8, maxTokens: 3000 });
-      usage.add(r);
-      const d = parseJson<Draft>(r.text);
+      const { value: d } = await completeJson<Draft>(
+        { system, prompt, temperature: 0.8, maxTokens: 3000 },
+        {
+          onAttempt: (r) => usage.add(r),
+          validate: (v) => (!v || typeof v !== "object" ? "bukan objek" : !String(v.headline ?? "").trim() ? "headline kosong" : !String(v.caption ?? "").trim() ? "caption kosong" : null),
+        },
+      );
       const headline = clean(d.headline, 140);
       if (!headline) throw new Error("headline kosong");
       const slides = [
@@ -141,11 +146,16 @@ export async function runCopywriter() {
       drafted++;
     } catch (e) {
       failed.push(`#${t.id}: ${(e as Error).message}`);
+      items.push({ label: `Topik #${t.id} — ${t.title.slice(0, 80)}`, error: (e as Error).message, raw: e instanceof AiError ? e.raw : undefined });
       await db().update(schema.topics).set({ status: "failed", scoreReason: `Gagal ditulis: ${(e as Error).message}`.slice(0, 500) }).where(eq(schema.topics.id, t.id));
     }
   }
 
   const msg = `Menulis headline & caption untuk ${drafted} topik` + (failed.length ? ` · ${failed.length} gagal (${failed.join("; ")})` : "");
-  await logRun("copywriter", msg, { ok: drafted > 0 || !failed.length, usage });
+  await logRun("copywriter", msg, {
+    ok: !failed.length,
+    usage,
+    detail: items.length ? { items, topicIds: queue.map((q) => q.t.id), attempts: usage.calls } : undefined,
+  });
   return { drafted, failed };
 }

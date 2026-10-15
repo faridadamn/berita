@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getActiveSession } from "@/lib/auth";
 import { brand } from "@/lib/config";
 import { LoginForm } from "./login-form";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { getThemePref } from "@/lib/theme";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   if (await getActiveSession()) redirect("/");
@@ -16,6 +18,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <p className="mt-2 text-sm text-muted">Khusus tim. Akun dibuat oleh admin.</p>
         <div className="card mt-8 p-5">
           <LoginForm next={next} />
+        </div>
+        <div className="mt-4 flex justify-center">
+          <ThemeToggle initial={await getThemePref()} compact />
         </div>
       </div>
     </main>

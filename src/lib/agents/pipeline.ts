@@ -5,6 +5,7 @@ import { getSettings, inWorkHours } from "../settings";
 import { runAnalis } from "./analis";
 import { runCopywriter } from "./copywriter";
 import { runScout } from "./scout";
+import { logRun } from "./common";
 import { flagStuck, refreshTokens, runDesigner, runPublisher, syncInsights } from "./publisher";
 
 const LOCK_MS = 10 * 60_000;
@@ -80,6 +81,7 @@ export async function runOps() {
       out[name] = await fn();
     } catch (e) {
       out[name] = { error: (e as Error).message };
+      await logRun("system", `Operasi "${name}" error: ${(e as Error).message}`, { ok: false, detail: { error: (e as Error).message, stack: (e as Error).stack } }).catch(() => {});
     }
   };
   try {

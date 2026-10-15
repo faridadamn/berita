@@ -1,7 +1,7 @@
 import "server-only";
 import { asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { complete, parseJson } from "../ai";
+import { AiError, completeJson } from "../ai";
 import { getSettings } from "../settings";
 import { Usage, audience, brainFor, logRun } from "./common";
 
@@ -45,11 +45,20 @@ export async function runAnalis() {
   const usage = new Usage();
   let verdicts: Verdict[];
   try {
-    const r = await complete({ system, prompt, json: true, temperature: 0.2, maxTokens: Math.max(3000, 1000 + batch.length * 300) });
-    usage.add(r);
-    verdicts = parseJson<{ results: Verdict[] }>(r.text).results ?? [];
+    const { value } = await completeJson<{ results: Verdict[] }>(
+      { system, prompt, temperature: 0.2, maxTokens: Math.max(3000, 1000 + batch.length * 300) },
+      {
+        onAttempt: (r) => usage.add(r),
+        validate: (v) => (Array.isArray(v?.results) && v.results.length ? null : "tidak ada array results"),
+      },
+    );
+    verdicts = value.results;
   } catch (e) {
-    await logRun("analis", `Gagal menilai ${batch.length} topik: ${(e as Error).message}`, { ok: false, usage });
+    await logRun("analis", `Gagal menilai ${batch.length} topik: ${(e as Error).message}`, {
+      ok: false,
+      usage,
+      detail: { error: (e as Error).message, raw: e instanceof AiError ? e.raw : undefined, topicIds: batch.map((t) => t.id), attempts: usage.calls },
+    });
     return { scored: 0, passed: 0, error: (e as Error).message };
   }
 

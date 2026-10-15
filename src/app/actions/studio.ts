@@ -7,6 +7,7 @@ import { requireSession } from "@/lib/auth";
 import { deletePost, getPostRaw, updatePost, updatePosts } from "@/lib/data";
 import { runPipeline } from "@/lib/agents/pipeline";
 import { renderPost } from "@/lib/render";
+import { logRun } from "@/lib/agents/common";
 import type { PostStatus, TemplateKey } from "@/lib/types";
 
 export type ActionState = { ok?: boolean; message?: string };
@@ -26,6 +27,7 @@ export async function runNow(): Promise<ActionState> {
     const err = ("error" in r.analis && r.analis.error) || (r.copywriter.failed?.length ? r.copywriter.failed[0] : null);
     return { ok: !err, message: parts.join(" · ") + (err ? ` — ${err}` : "") };
   } catch (e) {
+    await logRun("system", `Putaran manual error: ${(e as Error).message}`, { ok: false, detail: { error: (e as Error).message, stack: (e as Error).stack } }).catch(() => {});
     return { ok: false, message: (e as Error).message };
   }
 }
@@ -105,6 +107,9 @@ export async function bulkSetStatus(ids: number[], status: PostStatus) {
 /** Kembalikan topik ke antrian (mis. topik yang ditolak Analis tapi menurut tim layak). */
 export async function requeueTopic(id: number, to: "new" | "passed") {
   await requireSession();
-  await db().update(schema.topics).set({ status: to }).where(eq(schema.topics.id, id));
+  await db()
+    .update(schema.topics)
+    .set(to === "new" ? { status: "new", score: null, scoreReason: null } : { status: "passed", scoreReason: "Dipaksa tulis oleh tim" })
+    .where(eq(schema.topics.id, id));
   revalidatePath("/radar");
 }

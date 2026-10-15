@@ -23,6 +23,65 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* ── Tema terang ──────────────────────────────────────────────
+   data-theme="light" dipaksa dari toggle; tanpa atribut = ikut sistem. */
+:root {
+  --grid-line: rgb(255 255 255 / 0.018);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --color-bg: #f5f5f1;
+  --color-panel: #ffffff;
+  --color-panel-2: #f0f0eb;
+  --color-line: #e3e3dc;
+  --color-line-2: #cfcfc6;
+  --color-fg: #15171a;
+  --color-muted: #5d626b;
+  --color-dim: #8a8f98;
+  --color-accent: #d6f43c;
+  --color-accent-ink: #11140a;
+  --color-ok: #0f9f6e;
+  --color-danger: #d23b3b;
+  --color-scout: #0b7fc7;
+  --color-analis: #7c4ddb;
+  --color-copy: #b7791f;
+  --color-design: #d0428f;
+  --grid-line: rgb(0 0 0 / 0.035);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --color-bg: #f5f5f1;
+    --color-panel: #ffffff;
+    --color-panel-2: #f0f0eb;
+    --color-line: #e3e3dc;
+    --color-line-2: #cfcfc6;
+    --color-fg: #15171a;
+    --color-muted: #5d626b;
+    --color-dim: #8a8f98;
+    --color-ok: #0f9f6e;
+    --color-danger: #d23b3b;
+    --color-scout: #0b7fc7;
+    --color-analis: #7c4ddb;
+    --color-copy: #b7791f;
+    --color-design: #d0428f;
+    --grid-line: rgb(0 0 0 / 0.035);
+    color-scheme: light;
+  }
+}
+/* Lime terang tetap jadi warna latar/tombol, tapi sebagai TEKS di atas putih
+   tidak terbaca → pakai hijau tua. (Di luar @layer supaya menang dari utility.) */
+:root[data-theme="light"] .text-accent { color: #4d7c0f; }
+:root[data-theme="light"] .card.\!border-accent\/40,
+:root[data-theme="light"] .\!border-accent\/40 { border-color: #a3c41a !important; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) .text-accent { color: #4d7c0f; }
+  :root:not([data-theme]) .\!border-accent\/40 { border-color: #a3c41a !important; }
+}
+/* teks di atas foto/overlay gelap selalu terang, apa pun temanya */
+.on-dark { color: #fff; }
+.on-dark .text-accent, .text-accent.on-dark { color: #d6f43c !important; }
+
 html,
 body {
   background: var(--color-bg);
@@ -33,8 +92,8 @@ body {
 
 body {
   background-image:
-    linear-gradient(to right, rgb(255 255 255 / 0.018) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(255 255 255 / 0.018) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size: 48px 48px;
   min-height: 100dvh;
 }

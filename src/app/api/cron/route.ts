@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runOps, runPipeline } from "@/lib/agents/pipeline";
+import { logRun } from "@/lib/agents/common";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -23,6 +24,7 @@ async function handle(req: Request) {
     const ai = await runPipeline({ force: url.searchParams.get("force") === "1" });
     return NextResponse.json({ ok: true, ops, ai });
   } catch (e) {
+    await logRun("system", `Penjadwal error: ${(e as Error).message}`, { ok: false, detail: { error: (e as Error).message, stack: (e as Error).stack } }).catch(() => {});
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }
 }

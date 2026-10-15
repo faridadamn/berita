@@ -93,6 +93,16 @@ Sambungkan akun di **Admin → Kanal** (panduan singkat ada di tiap kartu; krede
 - Post terjadwal diposting oleh penjadwal (`/api/cron`) — di luar jam kerja AI pun tetap jalan. Ketelitian waktu = interval cron (15 menit; set worker 5 menit kalau perlu lebih tepat).
 - Insights IG (views, reach, likes, saves, shares, comments) & Threads disinkron tiap jam untuk post 14 hari terakhir.
 
+## Log & error
+
+Halaman **Log** mencatat semua aktivitas agen, posting, dan error sistem (badge merah di menu = jumlah error 24 jam). Klik baris untuk melihat provider/model, token, biaya, **jawaban mentah AI** yang gagal diproses, topik/post terkait, stack trace, dan saran perbaikan.
+
+Jawaban JSON dari AI dibuat tahan banting: mode JSON dikirim ke provider OpenAI-compatible (otomatis dimatikan kalau provider menolak), JSON rusak diperbaiki dengan `jsonrepair` (kutip tak di-escape, koma, terpotong), dan kalau masih gagal diminta ulang sekali dengan instruksi lebih ketat & jatah token lebih besar.
+
+## Tema
+
+Gelap (default), Terang, atau Ikuti sistem — tombol di bawah menu (desktop) / pojok kanan atas (HP). Pilihan disimpan di cookie per perangkat.
+
 ## Deploy production
 
 Env wajib: `AUTH_SECRET`, `DATABASE_URL`, `CRON_SECRET`, `APP_URL`, `ADMIN_PASSWORD_HASH` (`npm run hash -- passwordkamu`), `NEXT_PUBLIC_BRAND_*`.

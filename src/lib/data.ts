@@ -366,3 +366,45 @@ export async function touchUser(id: number) {
   await db().update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, id));
 }
 
+
+/* ───────────── Log ───────────── */
+
+export type LogRow = {
+  id: number;
+  agent: string;
+  message: string;
+  ok: boolean;
+  provider: string | null;
+  model: string | null;
+  tokensIn: number;
+  tokensOut: number;
+  costUsd: number;
+  detail: import("@/db/schema").RunDetail | null;
+  at: string;
+};
+
+export async function getLogs(opts: { errorsOnly?: boolean; agent?: string; before?: number; limit?: number } = {}) {
+  const conds = [];
+  if (opts.errorsOnly) conds.push(eq(agentRuns.ok, false));
+  if (opts.agent) conds.push(sql`${agentRuns.agent} = ${opts.agent}`);
+  if (opts.before) conds.push(sql`${agentRuns.id} < ${opts.before}`);
+  const q = db().select().from(agentRuns);
+  const rows = await (conds.length ? q.where(sql.join(conds, sql` and `)) : q)
+    .orderBy(desc(agentRuns.id))
+    .limit(opts.limit ?? 50);
+  return rows.map(
+    (r): LogRow => ({
+      id: r.id, agent: r.agent, message: r.message, ok: r.ok, provider: r.provider, model: r.model,
+      tokensIn: r.tokensIn, tokensOut: r.tokensOut, costUsd: r.costUsd, detail: r.detail ?? null, at: r.at.toISOString(),
+    }),
+  );
+}
+
+export async function getErrorCount(hours = 24) {
+  const since = new Date(Date.now() - hours * 3600_000).toISOString();
+  const [r] = await db()
+    .select({ n: count() })
+    .from(agentRuns)
+    .where(sql`${agentRuns.ok} = false and ${agentRuns.at} >= ${since}::timestamptz`);
+  return Number(r?.n ?? 0);
+}

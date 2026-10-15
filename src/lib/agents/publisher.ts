@@ -46,7 +46,7 @@ export async function runDesigner(limit = 6) {
       "designer",
       (done.length ? `Render slide untuk ${done.length} post (${done.map((d) => `#${d}`).join(", ")})` : "Render gagal") +
         (failed.length ? ` · ${failed.length} gagal (${failed.join("; ")})` : ""),
-      { ok: !failed.length },
+      { ok: !failed.length, detail: { postIds: done, ...(failed.length ? { items: failed.map((f) => ({ label: f.split(":")[0], error: f.slice(f.indexOf(":") + 1).trim() })) } : {}) } },
     );
   }
   return { rendered: done.length, failed };
@@ -123,7 +123,7 @@ export async function publishPost(postId: number) {
     await logRun(
       "publisher",
       `Post #${postId}` + (published.length ? ` terposting ke ${published.join(", ")}` : "") + (failed.length ? ` · gagal: ${failed.join("; ")}` : ""),
-      { ok: !failed.length },
+      { ok: !failed.length, detail: { postIds: [postId], ...(failed.length ? { items: failed.map((f) => ({ label: f.split(":")[0], error: f.slice(f.indexOf(":") + 1).trim() })) } : {}) } },
     );
   }
   return { published, failed };

@@ -9,7 +9,19 @@ export const topicStatusEnum = pgEnum("topic_status", ["new", "passed", "rejecte
 export const postStatusEnum = pgEnum("post_status", [
   "review", "approved", "scheduled", "posting", "posted", "failed", "rejected",
 ]);
-export const agentEnum = pgEnum("agent", ["scout", "analis", "copywriter", "designer", "publisher"]);
+export const agentEnum = pgEnum("agent", ["scout", "analis", "copywriter", "designer", "publisher", "system"]);
+
+/** Detail tambahan log (untuk debugging di halaman Log). */
+export type RunDetail = {
+  error?: string;
+  /** jawaban mentah AI yang gagal diproses (dipotong) */
+  raw?: string;
+  topicIds?: number[];
+  postIds?: number[];
+  attempts?: number;
+  items?: { label: string; error: string; raw?: string }[];
+  stack?: string;
+};
 export const providerKindEnum = pgEnum("provider_kind", ["openai", "gemini", "anthropic"]);
 export const platformEnum = pgEnum("platform", ["instagram", "threads", "x"]);
 export const publicationStatusEnum = pgEnum("publication_status", ["pending", "publishing", "published", "failed"]);
@@ -148,8 +160,9 @@ export const agentRuns = pgTable("agent_runs", {
   tokensIn: integer("tokens_in").notNull().default(0),
   tokensOut: integer("tokens_out").notNull().default(0),
   costUsd: real("cost_usd").notNull().default(0),
+  detail: jsonb("detail").$type<RunDetail>(),
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
-}, (t) => [index("agent_runs_at_idx").on(t.at)]);
+}, (t) => [index("agent_runs_at_idx").on(t.at), index("agent_runs_ok_idx").on(t.ok)]);
 
 /**
  * Provider AI. Urutan `position` = rantai fallback: kalau provider pertama error/limit,

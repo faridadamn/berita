@@ -55,13 +55,13 @@ export function ReviewGrid({ posts, ago }: { posts: Post[]; ago: Record<number, 
                 <span className="absolute top-2 left-2 rounded bg-black/70 px-1.5 text-[10px] font-semibold text-white">
                   1/{p.slides.length}
                 </span>
-                <span className="display absolute right-2 bottom-2 rounded bg-black/75 px-1.5 py-0.5 text-lg text-accent">
+                <span className="display absolute right-2 bottom-2 rounded bg-black/75 px-1.5 py-0.5 text-lg text-accent on-dark">
                   {p.score}
                 </span>
                 {selecting && (
                   <span
                     className={`absolute top-2 right-2 grid size-6 place-items-center rounded-full border ${
-                      picked ? "border-accent bg-accent text-accent-ink" : "border-white/60 bg-black/50"
+                      picked ? "border-accent bg-accent text-accent-ink" : "border-white/60 bg-black/50 text-white"
                     }`}
                   >
                     {picked && <Check size={13} />}
