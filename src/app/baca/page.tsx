@@ -28,7 +28,12 @@ export default async function BacaPage() {
         <div className="mt-5 grid grid-cols-3 gap-1">
           {posts.map((p) => (
             <a key={p.id} href={`/s/${p.shortCode}`} className="relative block">
-              <SlidePreview post={p} slide={p.slides[0]} className="!rounded-none" />
+              {p.renderCount > 0 ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/m/${p.shortCode}/1.jpg?v=${p.renderHash ?? ""}`} alt={p.headline} loading="lazy" className="aspect-[4/5] w-full object-cover" />
+              ) : (
+                <SlidePreview post={p} slide={p.slides[0]} className="!rounded-none" />
+              )}
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 px-1 pt-3 pb-0.5 text-[9px] font-semibold text-white">
                 {p.sourceName}
               </span>

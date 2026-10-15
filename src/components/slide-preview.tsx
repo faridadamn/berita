@@ -1,5 +1,6 @@
 import type { Post, Slide, TemplateKey } from "@/lib/types";
 import { brand } from "@/lib/config";
+import { fitScale, headlineIdeal, placeholderGradient } from "@/lib/fit";
 
 /**
  * Preview slide di browser (HTML/CSS). Tahap 3, komponen yang sama bisa dipakai
@@ -14,11 +15,12 @@ export function SlidePreview({
   className?: string;
 }) {
   const t: TemplateKey = post.template;
-  const gradient = `linear-gradient(135deg, hsl(${post.hue} 45% 32%), hsl(${(post.hue + 40) % 360} 35% 14%))`;
+  const gradient = placeholderGradient(post.hue);
   const photo: React.CSSProperties = post.imageUrl
     ? { backgroundImage: `url("${post.imageUrl.replace(/"/g, "%22")}"), ${gradient}`, backgroundSize: "cover", backgroundPosition: "center" }
     : { background: gradient };
   const cq = (n: number) => ({ fontSize: `${n}cqw` });
+  const hq = (n: number, ideal: number) => cq(n * fitScale(slide.headline, ideal));
 
   const header = (dark: boolean) => (
     <div className={`flex items-center justify-between ${dark ? "text-white/70" : "text-black/60"}`} style={cq(2.6)}>
@@ -46,7 +48,7 @@ export function SlidePreview({
       <div className={`${base} ${bg} flex flex-col p-[6cqw]`}>
         {header(t === "foto")}
         <div className="flex flex-1 flex-col justify-center gap-[3cqw]">
-          <p className={`display ${t === "foto" ? "text-accent" : ""}`} style={cq(10)}>
+          <p className={`display ${t === "foto" ? "text-accent" : ""}`} style={hq(10, headlineIdeal.cta)}>
             {slide.headline}
           </p>
           <p style={cq(3.6)} className="leading-snug opacity-85">
@@ -64,7 +66,7 @@ export function SlidePreview({
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         <div className="relative">{header(true)}</div>
         <div className="relative mt-auto space-y-[2.5cqw]">
-          <p className="font-extrabold leading-[1.05] text-[#ff6fb5]" style={cq(7.4)}>
+          <p className="font-extrabold leading-[1.05] text-[#ff6fb5]" style={hq(7.4, headlineIdeal.foto)}>
             {slide.headline}
           </p>
           {slide.body && (
@@ -82,7 +84,7 @@ export function SlidePreview({
     return wrap(
       <div className={`${base} flex flex-col bg-white p-[6cqw] text-black`}>
         {header(false)}
-        <p className="mt-[5cqw] text-center font-serif leading-[1.05]" style={cq(7.6)}>
+        <p className="mt-[5cqw] text-center font-[DM_Serif_Display] leading-[1.05]" style={hq(7.6, headlineIdeal.putih)}>
           {slide.headline}
         </p>
         {slide.body && (
@@ -100,7 +102,7 @@ export function SlidePreview({
   return wrap(
     <div className={`${base} flex flex-col bg-[#f06bb7] p-[6cqw] text-black`}>
       {header(false)}
-      <p className="display mt-[4cqw] text-center" style={cq(9)}>
+      <p className="display mt-[4cqw] text-center" style={hq(9, headlineIdeal.stabilo)}>
         “{slide.headline}”
       </p>
       <div className="mx-[3cqw] mt-[4cqw] flex-1 rounded-[2cqw] shadow-lg" style={photo} />

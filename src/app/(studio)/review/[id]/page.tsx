@@ -1,27 +1,36 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarClock, CheckCircle2, ExternalLink, Link2, Trash2, XCircle, Check, Wand2 } from "lucide-react";
-import { getPost } from "@/lib/data";
+import { ArrowLeft, Check, ExternalLink, Link2, Trash2, Wand2, XCircle } from "lucide-react";
+import { getPost, getPublications } from "@/lib/data";
+import { requireSession } from "@/lib/auth";
+import { appUrl, getChannelViews } from "@/lib/channels";
+import { loadPostForRender, renderHashOf } from "@/lib/render";
 import { formatWIB, toLocalInput } from "@/lib/format";
-import { removePost, savePostText, schedulePost, setPostStatus, applyAlternative } from "@/app/actions/studio";
+import { applyAlternative, removePost, savePostText, setPostStatus } from "@/app/actions/studio";
 import { ActButton } from "@/components/forms";
 import { SlideViewer } from "./slide-viewer";
+import { PublishPanel } from "./publish-panel";
+import { CopyPanel } from "./copy-panel";
 
 const statusLabel: Record<string, string> = {
   review: "Perlu review", approved: "Disetujui", scheduled: "Terjadwal", posting: "Sedang posting",
-  posted: "Posted", failed: "Gagal posting", rejected: "Ditolak",
+  posted: "Terposting", failed: "Gagal posting", rejected: "Ditolak",
 };
 
 export default async function ReviewDetail({ params }: { params: Promise<{ id: string }> }) {
+  const session = await requireSession();
   const { id } = await params;
   const post = await getPost(Number(id));
   if (!post) notFound();
-  const host = (await headers()).get("host") ?? "localhost:3000";
+  const [pubs, channels, raw] = await Promise.all([getPublications(post.id), getChannelViews(), loadPostForRender(post.id)]);
+  const stale = post.renderCount > 0 && !!raw && raw.renderHash !== renderHashOf(raw);
+  const base = appUrl();
+  const link = `${base ?? ""}/s/${post.shortCode}`;
+  // default jadwal: jadwal yang ada, atau 1 jam lagi dibulatkan
+  const next = new Date(Math.ceil((Date.now() + 3600_000) / 900_000) * 900_000).toISOString();
 
   const approve = setPostStatus.bind(null, post.id, "approved");
   const reject = setPostStatus.bind(null, post.id, "rejected");
-  const schedule = schedulePost.bind(null, post.id);
   const save = savePostText.bind(null, post.id);
   const del = removePost.bind(null, post.id);
 
@@ -31,9 +40,15 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
         <ArrowLeft size={13} /> Antrian review
       </Link>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <div className="card p-4">
-          <SlideViewer post={post} />
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+        <div className="space-y-4">
+          <div className="card p-4">
+            <SlideViewer post={post} stale={stale} />
+          </div>
+          <section className="card p-4">
+            <p className="mb-3 text-sm font-semibold">Salin untuk posting manual</p>
+            <CopyPanel post={post} link={link} pubs={pubs} />
+          </section>
         </div>
 
         <div className="space-y-4">
@@ -43,61 +58,52 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
               <span className="text-[11px] text-dim">skor {post.score}</span>
             </div>
             <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
-              <Link2 size={12} /> Link sumber
+              <Link2 size={12} /> Shortlink
               <a href={`/s/${post.shortCode}`} className="font-mono text-fg underline" target="_blank">
-                {host}/s/{post.shortCode}
+                {link.replace(/^https?:\/\//, "")}
               </a>
               · {post.clicks} klik ·
-              <a href={post.sourceUrl} target="_blank" className="hover:text-fg">
+              <a href={post.sourceUrl} target="_blank" rel="noreferrer" className="hover:text-fg">
                 {post.sourceName} <ExternalLink size={10} className="inline" />
               </a>
             </p>
-
-            {post.status === "posted" && (
-              <p className="flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/5 px-3 py-2 text-[12px] text-ok">
-                <CheckCircle2 size={14} /> Sudah terposting {formatWIB(post.postedAt)}
-                {post.igPermalink && (
-                  <a href={post.igPermalink} target="_blank" className="underline">
-                    Lihat di Instagram
-                  </a>
-                )}
+            {post.scheduledAt && (post.status === "scheduled" || post.status === "posting") && (
+              <p className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-[12px] text-accent">
+                Terjadwal {formatWIB(post.scheduledAt)} WIB
               </p>
             )}
-            {post.status === "scheduled" && (
-              <p className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 text-[12px] text-accent">
-                <CalendarClock size={14} /> Terjadwal {formatWIB(post.scheduledAt)} WIB
-              </p>
+            {post.postedAt && <p className="text-[12px] text-ok">Terposting {formatWIB(post.postedAt)} WIB</p>}
+            {!base && (
+              <p className="text-[11px] text-copy">APP_URL belum diisi — Instagram & Threads butuh URL publik untuk mengambil gambar.</p>
             )}
 
-            <form action={schedule} className="space-y-1.5">
-              <p className="eyebrow !text-[9px]">Jadwal posting (WIB)</p>
-              <div className="flex gap-2">
-                <input type="datetime-local" name="scheduledAt" defaultValue={toLocalInput(post.scheduledAt)} className="input" required />
-                <button className="btn">
-                  <CalendarClock size={13} /> Jadwalkan
-                </button>
-              </div>
-            </form>
+            <PublishPanel
+              post={post}
+              channels={channels}
+              pubs={pubs}
+              defaultWhen={toLocalInput(post.scheduledAt ?? next)}
+              isAdmin={session.role === "admin"}
+            />
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 border-t border-line pt-3">
               {post.status === "review" && (
                 <form action={approve}>
-                  <button className="btn btn-primary"><Check size={13} /> Setujui</button>
+                  <button className="btn"><Check size={13} /> Setujui tanpa jadwal</button>
                 </form>
               )}
-              {post.status !== "rejected" && post.status !== "posted" && (
+              {!["rejected", "posted", "posting"].includes(post.status) && (
                 <form action={reject}>
                   <button className="btn btn-danger"><XCircle size={13} /> Tolak</button>
                 </form>
               )}
-              <form action={del}>
-                <button className="btn btn-danger"><Trash2 size={13} /> Hapus</button>
-              </form>
+              <ActButton run={del} confirm="Hapus post ini? Post yang sudah terposting di platform tidak ikut terhapus." className="btn btn-danger">
+                <Trash2 size={13} /> Hapus
+              </ActButton>
             </div>
           </section>
 
-          <form key={post.headline} action={save} className="card space-y-4 p-4">
-            <p className="text-sm font-semibold">Slide 1 · Cover</p>
+          <form key={`${post.headline}|${post.renderHash}`} action={save} className="card space-y-4 p-4">
+            <p className="text-sm font-semibold">Edit konten</p>
             <div className="grid grid-cols-2 gap-3">
               <label className="space-y-1.5">
                 <span className="eyebrow !text-[9px]">Kicker</span>
@@ -112,35 +118,48 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
                 </select>
               </label>
             </div>
+
+            {post.slides.map((s, i) => (
+              <fieldset key={i} className="space-y-2 rounded-lg border border-line p-3">
+                <legend className="px-1 text-[11px] text-muted">
+                  Slide {i + 1} · {s.kind === "cover" ? "Cover" : s.kind === "cta" ? "Penutup (CTA)" : "Isi"}
+                </legend>
+                <textarea name={`slide-${i}-headline`} defaultValue={s.headline} rows={s.kind === "cover" ? 2 : 1} className="input" aria-label="Judul slide" />
+                <textarea name={`slide-${i}-body`} defaultValue={s.body ?? ""} rows={2} className="input text-[13px]" aria-label="Teks slide" placeholder="Teks kecil (opsional)" />
+                {i === 0 && post.headlineAlternatives.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[11px] text-dim">Alternatif dari Copywriter (klik untuk pakai):</p>
+                    {post.headlineAlternatives.map((h) => (
+                      <ActButton
+                        key={h}
+                        run={applyAlternative.bind(null, post.id, h)}
+                        className="w-full rounded-md border border-line px-2.5 py-1.5 text-left text-[12px] text-muted hover:border-line-2 hover:text-fg"
+                      >
+                        {h}
+                      </ActButton>
+                    ))}
+                  </div>
+                )}
+              </fieldset>
+            ))}
+
             <label className="block space-y-1.5">
-              <span className="eyebrow !text-[9px]">Headline di gambar</span>
-              <textarea name="headline" defaultValue={post.headline} rows={2} className="input" />
-            </label>
-            {post.headlineAlternatives.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[11px] text-dim">Alternatif dari Copywriter (klik untuk pakai):</p>
-                {post.headlineAlternatives.map((h) => (
-                  <ActButton
-                    key={h}
-                    run={applyAlternative.bind(null, post.id, h)}
-                    className="w-full rounded-md border border-line px-2.5 py-1.5 text-left text-[12px] text-muted hover:border-line-2 hover:text-fg"
-                  >
-                    {h}
-                  </ActButton>
-                ))}
-              </div>
-            )}
-            <label className="block space-y-1.5">
-              <span className="eyebrow !text-[9px]">Caption</span>
+              <span className="eyebrow !text-[9px]">Caption Instagram</span>
               <textarea name="caption" defaultValue={post.caption} rows={7} className="input" />
             </label>
             <label className="block space-y-1.5">
               <span className="eyebrow !text-[9px]">Hashtag</span>
               <input name="hashtags" defaultValue={post.hashtags.join(" ")} className="input" />
             </label>
-            <p className="text-[11px] text-dim">
-              Format carousel: slide isi tetap disimpan; pembaca diarahkan ke artikel asli lewat halaman <b>/baca</b>.
-            </p>
+            <label className="block space-y-1.5">
+              <span className="eyebrow !text-[9px]">Teks Threads</span>
+              <textarea name="threads" defaultValue={post.platformText.threads ?? ""} rows={4} className="input" placeholder="Kosong = headline + paragraf pertama caption" />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="eyebrow !text-[9px]">Teks X</span>
+              <textarea name="x" defaultValue={post.platformText.x ?? ""} rows={2} className="input" placeholder="Kosong = headline" />
+            </label>
+            <p className="text-[11px] text-dim">Shortlink artikel ditambahkan otomatis di akhir teks Threads & X.</p>
             <div className="flex flex-wrap gap-2">
               <button name="intent" value="render" className="btn btn-primary"><Wand2 size={13} /> Simpan & render ulang</button>
               <button name="intent" value="text" className="btn">Simpan teks saja</button>

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/inter";
 import "@fontsource/anton";
+import "@fontsource/dm-serif-display";
 import "@fontsource/jetbrains-mono/400.css";
 import "./globals.css";
 import { brand } from "@/lib/config";

@@ -6,9 +6,9 @@ import { asc, count, desc, eq, gte, inArray, sql, sum } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { mask, decrypt } from "./crypto";
 import { getSettings, inWorkHours } from "./settings";
-import type { Activity, Agent, AgentKey, BrainNote, Post, PostStatus, ProviderView, Source, TeamMember, Topic } from "./types";
+import type { Activity, Agent, AgentKey, BrainNote, Post, PostStatus, ProviderView, Publication, Source, TeamMember, Topic } from "./types";
 
-const { posts, topics, sources, clicks, agentRuns, users, brainNotes, aiProviders } = schema;
+const { posts, topics, sources, clicks, agentRuns, users, brainNotes, aiProviders, publications, renders } = schema;
 const DAY = 86_400_000;
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
@@ -83,10 +83,10 @@ export async function getAgents(): Promise<Agent[]> {
   const active = s.mode !== "off" && (s.mode === "manual" || inWorkHours(s));
   return agentMeta.map((m) => {
     const l = last.find((x) => x.agent === m.key);
-    const off = m.key === "designer" || !active; // Designer aktif di tahap 3
+    const off = m.key !== "designer" && !active; // Designer bukan AI, selalu siap
     return {
       ...m,
-      status: running && m.key !== "designer" ? "running" : off ? "off" : "standby",
+      status: running ? "running" : off ? "off" : "standby",
       lastActiveAt: iso(l?.at),
       lastMessage: l?.message ?? null,
     };
@@ -102,6 +102,7 @@ export const reviewTabs: { key: PostStatus; label: string }[] = [
   { key: "review", label: "Perlu review" },
   { key: "approved", label: "Disetujui" },
   { key: "scheduled", label: "Terjadwal" },
+  { key: "posting", label: "Sedang posting" },
   { key: "failed", label: "Gagal posting" },
   { key: "posted", label: "Sudah posting" },
   { key: "rejected", label: "Ditolak" },
@@ -115,10 +116,11 @@ export async function getPostCounts() {
 }
 
 const clickCount = sql<number>`(select count(*) from ${clicks} where ${clicks.postId} = ${posts.id})`.mapWith(Number);
+const renderCount = sql<number>`(select count(*) from ${renders} where ${renders.postId} = ${posts.id})`.mapWith(Number);
 
 function postQuery() {
   return db()
-    .select({ post: posts, topic: topics, sourceName: sources.name, clicks: clickCount })
+    .select({ post: posts, topic: topics, sourceName: sources.name, clicks: clickCount, renderCount })
     .from(posts)
     .leftJoin(topics, eq(posts.topicId, topics.id))
     .leftJoin(sources, eq(topics.sourceId, sources.id));
@@ -126,7 +128,7 @@ function postQuery() {
 
 type PostRow = Awaited<ReturnType<typeof postQuery>>[number];
 
-function toPost({ post: p, topic: t, sourceName, clicks: c }: PostRow): Post {
+function toPost({ post: p, topic: t, sourceName, clicks: c, renderCount: rc }: PostRow): Post {
   return {
     id: p.id,
     topicId: p.topicId ?? 0,
@@ -157,6 +159,11 @@ function toPost({ post: p, topic: t, sourceName, clicks: c }: PostRow): Post {
     clicks: c,
     imageUrl: t?.imageUrl ?? null,
     hue: (p.id * 47) % 360,
+    platformText: p.platformText ?? {},
+    renderCount: rc,
+    renderedAt: iso(p.renderedAt),
+    renderHash: p.renderHash,
+    renderError: p.renderError,
   };
 }
 
@@ -170,6 +177,21 @@ export async function getPost(id: number) {
   if (!Number.isFinite(id)) return null;
   const [r] = await postQuery().where(eq(posts.id, id));
   return r ? toPost(r) : null;
+}
+
+export async function getPublications(postId: number): Promise<Publication[]> {
+  const rows = await db().select().from(publications).where(eq(publications.postId, postId)).orderBy(asc(publications.id));
+  return rows.map((r) => ({
+    id: r.id,
+    platform: r.platform,
+    status: r.status,
+    manual: r.manual,
+    permalink: r.permalink,
+    error: r.error,
+    attempts: r.attempts,
+    metrics: r.metrics,
+    publishedAt: iso(r.publishedAt),
+  }));
 }
 
 export async function getPostByShortCode(code: string) {
@@ -193,7 +215,7 @@ export async function getCalendarPosts(from: Date, to: Date) {
 type PostPatch = Partial<
   Pick<
     typeof posts.$inferInsert,
-    "status" | "scheduledAt" | "headline" | "kicker" | "caption" | "template" | "format" | "slides" | "hashtags" | "reviewedBy"
+    "status" | "scheduledAt" | "headline" | "kicker" | "caption" | "template" | "format" | "slides" | "hashtags" | "reviewedBy" | "platformText"
   >
 >;
 

@@ -38,6 +38,39 @@ export type Post = {
   imageUrl: string | null;
   /** seed warna placeholder kalau tidak ada gambar */
   hue: number;
+  platformText: { threads?: string; x?: string };
+  renderCount: number;
+  renderedAt: string | null;
+  renderHash: string | null;
+  renderError: string | null;
+};
+
+export type Platform = "instagram" | "threads" | "x";
+
+export type Publication = {
+  id: number;
+  platform: Platform;
+  status: "pending" | "publishing" | "published" | "failed";
+  manual: boolean;
+  permalink: string | null;
+  error: string | null;
+  attempts: number;
+  metrics: Record<string, number>;
+  publishedAt: string | null;
+};
+
+export type ChannelView = {
+  platform: Platform;
+  label: string;
+  enabled: boolean;
+  configured: boolean;
+  accountName: string | null;
+  lastError: string | null;
+  tokenRefreshedAt: string | null;
+  /** nilai non-rahasia untuk form (id user, host, versi) */
+  publicFields: Record<string, string>;
+  /** kunci rahasia → versi tersamar */
+  secretMasks: Record<string, string>;
 };
 
 export type Topic = {

@@ -15,6 +15,8 @@ type Draft = {
   slides: { headline: string; body: string }[];
   caption: string;
   hashtags: string[];
+  threads: string;
+  x: string;
 };
 
 const TEMPLATES = ["stabilo", "putih", "foto"] as const;
@@ -77,9 +79,12 @@ export async function runCopywriter() {
       `- subline: 1 kalimat pendek opini/konteks di bawah headline cover\n` +
       `- slides: 2-4 slide isi, tiap slide {headline maks 6 kata, body maks 35 kata}\n` +
       `- caption: 2-4 paragraf pendek, akhiri dengan ajakan baca lengkap lewat link di bio ${brand.handle} dan sebut sumber ${source}\n` +
-      `- hashtags: 3-6 hashtag relevan` +
+      `- hashtags: 3-6 hashtag relevan\n` +
+      `- threads: versi Threads 2-3 kalimat (maks 400 karakter), gaya ngobrol, tanpa hashtag, tanpa "link di bio" (link artikel ditambahkan otomatis)\n` +
+      `- x: versi X/Twitter 1-2 kalimat padat (maks 200 karakter), tanpa hashtag, tanpa "link di bio" (link ditambahkan otomatis)\n` +
+      `- Jangan pakai emoji di headline/slides (tidak ter-render di gambar); di caption/threads/x boleh secukupnya` +
       brain +
-      `\n\nJawab HANYA JSON: {"kicker":"","headline":"","alternatives":["",""],"subline":"","slides":[{"headline":"","body":""}],"caption":"","hashtags":[""]}`;
+      `\n\nJawab HANYA JSON: {"kicker":"","headline":"","alternatives":["",""],"subline":"","slides":[{"headline":"","body":""}],"caption":"","hashtags":[""],"threads":"","x":""}`;
     const prompt =
       `SUMBER: ${source}\nJUDUL: ${t.title}\nURL: ${t.url}\n\nRINGKASAN RSS:\n${(t.summary ?? "").slice(0, 1200)}\n\n` +
       (article.text ? `ISI ARTIKEL (potongan):\n${article.text}` : "(isi artikel tidak bisa diambil — tulis hanya dari judul & ringkasan, jangan mengarang detail)");
@@ -117,6 +122,7 @@ export async function runCopywriter() {
             headlineAlternatives: (Array.isArray(d.alternatives) ? d.alternatives : []).map((a) => clean(a, 140)).filter(Boolean).slice(0, 3),
             caption: String(d.caption ?? "").trim().slice(0, 2100),
             hashtags,
+            platformText: { threads: String(d.threads ?? "").trim().slice(0, 480), x: String(d.x ?? "").trim().slice(0, 250) },
             template: TEMPLATES[(Number(existing) + i) % TEMPLATES.length],
             format: "carousel",
             slides,

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runPipeline } from "@/lib/agents/pipeline";
+import { runOps, runPipeline } from "@/lib/agents/pipeline";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -18,8 +18,10 @@ async function handle(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const result = await runPipeline({ force: url.searchParams.get("force") === "1" });
-    return NextResponse.json({ ok: true, result });
+    // posting terjadwal didahulukan supaya tidak menunggu putaran AI yang lama
+    const ops = await runOps();
+    const ai = await runPipeline({ force: url.searchParams.get("force") === "1" });
+    return NextResponse.json({ ok: true, ops, ai });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });
   }

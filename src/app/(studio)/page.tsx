@@ -71,7 +71,7 @@ export default async function Overview() {
               </div>
             </div>
             <p className="mt-4 text-[11px] text-muted">
-              {statusLabel[a.status]} · {a.key === "designer" ? "aktif di tahap 3" : a.lastActiveAt ? `aktif ${timeAgo(a.lastActiveAt)}` : "belum pernah jalan"}
+              {statusLabel[a.status]} · {a.lastActiveAt ? `aktif ${timeAgo(a.lastActiveAt)}` : "belum pernah jalan"}
             </p>
           </div>
         ))}
@@ -88,8 +88,8 @@ export default async function Overview() {
           <ul>
             {activity.map((a) => (
               <li key={a.id} className="flex items-start gap-4 border-b border-line/60 px-4 py-2.5 text-[13px] last:border-0">
-                <span className={`w-24 shrink-0 font-medium ${a.agent in agentStyle ? agentStyle[a.agent as keyof typeof agentStyle].text : "text-muted"}`}>
-                  • {a.agent in agentStyle ? agentStyle[a.agent as keyof typeof agentStyle].label : a.agent}
+                <span className={`w-24 shrink-0 font-medium ${a.agent in agentStyle ? agentStyle[a.agent as keyof typeof agentStyle].text : "text-ok"}`}>
+                  • {a.agent in agentStyle ? agentStyle[a.agent as keyof typeof agentStyle].label : a.agent === "publisher" ? "Publisher" : a.agent}
                 </span>
                 <span className={`min-w-0 flex-1 break-words ${a.ok ? "" : "text-danger"}`}>{a.message}</span>
                 <span className="shrink-0 text-[11px] text-dim">{timeAgo(a.at)}</span>

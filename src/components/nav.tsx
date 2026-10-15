@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutGrid, Inbox, Radar, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut, UserRound,
+  LayoutGrid, Inbox, Radar, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut, UserRound, Share2,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 
@@ -28,6 +28,7 @@ export function Nav({
   ];
   const admin: Item[] = [
     { href: "/admin/sumber", label: "Sumber Topik", Icon: Rss },
+    { href: "/admin/kanal", label: "Kanal", Icon: Share2 },
     { href: "/admin/tim", label: "Tim & Akses", Icon: Users },
     { href: "/admin/pengaturan", label: "Pengaturan", Icon: Settings },
   ];

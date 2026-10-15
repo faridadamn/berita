@@ -6,6 +6,7 @@ import { db, schema } from "@/db";
 import { requireSession } from "@/lib/auth";
 import { deletePost, getPostRaw, updatePost, updatePosts } from "@/lib/data";
 import { runPipeline } from "@/lib/agents/pipeline";
+import { renderPost } from "@/lib/render";
 import type { PostStatus, TemplateKey } from "@/lib/types";
 
 export type ActionState = { ok?: boolean; message?: string };
@@ -36,38 +37,37 @@ export async function setPostStatus(id: number, status: PostStatus) {
   revalidatePath(`/review/${id}`);
 }
 
-export async function schedulePost(id: number, form: FormData) {
-  const s = await requireSession();
-  const local = String(form.get("scheduledAt") ?? "");
-  if (!local) return;
-  // input datetime-local dianggap WIB (UTC+7)
-  const when = new Date(`${local}:00+07:00`);
-  if (isNaN(+when)) return;
-  await updatePost(id, { status: "scheduled", scheduledAt: when, reviewedBy: Number(s.userId) });
-  revalidatePath("/review");
-  revalidatePath(`/review/${id}`);
-  revalidatePath("/kalender");
-}
-
 export async function savePostText(id: number, form: FormData) {
   await requireSession();
   const post = await getPostRaw(id);
   if (!post) return;
-  const headline = String(form.get("headline") ?? post.headline).trim() || post.headline;
-  const slides = post.slides.map((s, i) => (i === 0 ? { ...s, headline } : s));
-  const template = String(form.get("template") ?? post.template);
+  const field = (k: string, d: string) => (form.has(k) ? String(form.get(k) ?? "") : d);
+  const slides = post.slides.map((s, i) => ({
+    ...s,
+    headline: field(`slide-${i}-headline`, s.headline).trim() || s.headline,
+    body: field(`slide-${i}-body`, s.body ?? "").trim(),
+  }));
+  const headline = slides[0]?.headline ?? post.headline;
+  const template = field("template", post.template);
   await updatePost(id, {
     headline,
-    kicker: String(form.get("kicker") ?? post.kicker).trim(),
+    kicker: field("kicker", post.kicker).trim(),
     template: (["stabilo", "putih", "foto"].includes(template) ? template : post.template) as TemplateKey,
-    caption: String(form.get("caption") ?? post.caption),
-    hashtags: String(form.get("hashtags") ?? post.hashtags.join(" "))
+    caption: field("caption", post.caption),
+    hashtags: field("hashtags", post.hashtags.join(" "))
       .split(/[\s,]+/)
       .filter(Boolean)
       .map((h) => "#" + h.replace(/^#+/, "")),
+    platformText: { threads: field("threads", post.platformText?.threads ?? "").trim(), x: field("x", post.platformText?.x ?? "").trim() },
     slides,
   });
-  // Tahap 3: kalau intent === "render", panggil Designer untuk render ulang gambar.
+  if (form.get("intent") === "render") {
+    try {
+      await renderPost(id);
+    } catch {
+      /* error tersimpan di renderError oleh designer berikutnya */
+    }
+  }
   revalidatePath(`/review/${id}`);
   revalidatePath("/review");
 }
