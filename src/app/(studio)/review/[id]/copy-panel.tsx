@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { Check, Copy, Download } from "lucide-react";
 import { ActionForm } from "@/components/forms";
 import { markManual } from "@/app/actions/publish";
@@ -51,9 +52,9 @@ export function CopyPanel({ post, link, pubs }: { post: Post; link: string; pubs
           {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "Tersalin" : `Salin teks ${tabs.find((t) => t.key === tab)!.label}`}
         </button>
         {post.renderCount > 0 && (
-          <a href={`/review/${post.id}/download`} className="btn">
+          <Link href={`/review/${post.id}/download`} className="btn">
             <Download size={13} /> Gambar (pakai {imgCount})
-          </a>
+          </Link>
         )}
         <span className={`ml-auto text-[11px] ${len > limit ? "text-danger" : "text-dim"}`}>
           {len}/{limit}

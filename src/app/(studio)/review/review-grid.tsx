@@ -48,7 +48,7 @@ export function ReviewGrid({ posts, ago }: { posts: Post[]; ago: Record<number, 
               <div className="relative">
                 {p.renderCount > 0 ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={`/m/${p.shortCode}/1.jpg?v=${p.renderHash ?? ""}`} alt="" loading="lazy" className="aspect-[4/5] w-full rounded-t-xl object-cover" />
+                  <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/m/${p.shortCode}/1.jpg?v=${p.renderHash ?? ""}`} alt="" loading="lazy" className="aspect-[4/5] w-full rounded-t-xl object-cover" />
                 ) : (
                   <SlidePreview post={p} slide={p.slides[0]} className="!rounded-none !rounded-t-xl" />
                 )}

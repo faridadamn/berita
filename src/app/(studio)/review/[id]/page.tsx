@@ -59,7 +59,7 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
             </div>
             <p className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
               <Link2 size={12} /> Shortlink
-              <a href={`/s/${post.shortCode}`} className="font-mono text-fg underline" target="_blank">
+              <a href={link} className="font-mono text-fg underline" target="_blank" rel="noreferrer">
                 {link.replace(/^https?:\/\//, "")}
               </a>
               · {post.clicks} klik ·

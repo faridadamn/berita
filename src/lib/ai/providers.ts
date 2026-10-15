@@ -123,9 +123,10 @@ async function callOne(p: ProviderConfig, input: CompleteInput) {
       systemInstruction: { parts: [{ text: input.system }] },
       contents: [{ role: "user", parts: [{ text: input.prompt }] }],
       generationConfig: {
-        maxOutputTokens: maxTokens,
+        maxOutputTokens: Math.max(maxTokens, 4000),
         temperature,
         ...(input.json ? { responseMimeType: "application/json" } : {}),
+        thinkingConfig: { thinkingBudget: 0 },
       },
     });
     const cand = j.candidates?.[0];

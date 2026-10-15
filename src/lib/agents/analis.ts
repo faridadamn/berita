@@ -45,7 +45,7 @@ export async function runAnalis() {
   const usage = new Usage();
   let verdicts: Verdict[];
   try {
-    const r = await complete({ system, prompt, json: true, temperature: 0.2, maxTokens: 300 + batch.length * 120 });
+    const r = await complete({ system, prompt, json: true, temperature: 0.2, maxTokens: Math.max(3000, 1000 + batch.length * 300) });
     usage.add(r);
     verdicts = parseJson<{ results: Verdict[] }>(r.text).results ?? [];
   } catch (e) {

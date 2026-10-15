@@ -90,7 +90,7 @@ export async function runCopywriter() {
       (article.text ? `ISI ARTIKEL (potongan):\n${article.text}` : "(isi artikel tidak bisa diambil — tulis hanya dari judul & ringkasan, jangan mengarang detail)");
 
     try {
-      const r = await complete({ system, prompt, json: true, temperature: 0.8, maxTokens: 2000 });
+      const r = await complete({ system, prompt, json: true, temperature: 0.8, maxTokens: 3000 });
       usage.add(r);
       const d = parseJson<Draft>(r.text);
       const headline = clean(d.headline, 140);
