@@ -5,6 +5,7 @@ import "server-only";
 import { asc, count, desc, eq, gte, inArray, sql, sum } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { mask, decrypt } from "./crypto";
+import { isContentType, isTemplate } from "./content";
 import { getSettings, inWorkHours } from "./settings";
 import type { Activity, Agent, AgentKey, BrainNote, Post, PostStatus, ProviderView, Publication, Source, TeamMember, Topic } from "./types";
 
@@ -138,18 +139,19 @@ function toPost({ post: p, topic: t, sourceName, clicks: c, renderCount: rc }: P
     headlineAlternatives: p.headlineAlternatives,
     caption: p.caption,
     hashtags: p.hashtags,
-    template: (["stabilo", "putih", "foto"].includes(p.template) ? p.template : "stabilo") as Post["template"],
+    template: isTemplate(p.template) ? p.template : "stabilo",
     format: p.format === "single" ? "single" : "carousel",
     slides: p.slides,
     status: p.status,
     score: t?.score ?? 0,
-    sourceName: sourceName ?? (t?.url ? new URL(t.url).hostname.replace(/^www\./, "") : "—"),
+    sourceName: sourceName ?? (t?.url && /^https?:/.test(t.url) ? new URL(t.url).hostname.replace(/^www\./, "") : "Ide tim"),
     sourceUrl: t?.url ?? "#",
     shortCode: p.shortCode,
     scheduledAt: iso(p.scheduledAt),
     postedAt: iso(p.postedAt),
     igPermalink: p.igPermalink,
     createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
     views: p.views,
     reach: p.reach,
     likes: p.likes,
@@ -160,6 +162,8 @@ function toPost({ post: p, topic: t, sourceName, clicks: c, renderCount: rc }: P
     imageUrl: t?.imageUrl ?? null,
     hue: (p.id * 47) % 360,
     platformText: p.platformText ?? {},
+    contentType: isContentType(p.contentType) ? p.contentType : "berita",
+    images: p.images ?? [],
     renderCount: rc,
     renderedAt: iso(p.renderedAt),
     renderHash: p.renderHash,
@@ -215,7 +219,7 @@ export async function getCalendarPosts(from: Date, to: Date) {
 type PostPatch = Partial<
   Pick<
     typeof posts.$inferInsert,
-    "status" | "scheduledAt" | "headline" | "kicker" | "caption" | "template" | "format" | "slides" | "hashtags" | "reviewedBy" | "platformText"
+    "status" | "scheduledAt" | "headline" | "kicker" | "caption" | "template" | "format" | "slides" | "hashtags" | "reviewedBy" | "platformText" | "contentType" | "images"
   >
 >;
 
@@ -284,6 +288,8 @@ export async function getSources(): Promise<Source[]> {
     lastFetchedAt: iso(s.lastFetchedAt),
     lastError: s.lastError,
     topics24h: n,
+    kind: s.kind,
+    defaultFormat: s.defaultFormat,
   }));
 }
 

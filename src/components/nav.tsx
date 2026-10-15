@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutGrid, Inbox, Radar, ScrollText, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut, UserRound, Share2,
+  LayoutGrid, Inbox, Radar, ScrollText, SquarePen, CalendarDays, BarChart3, Brain, Rss, Users, Settings, LogOut, UserRound, Share2,
 } from "lucide-react";
 import { logout } from "@/app/actions/auth";
 import { ThemeToggle, type ThemePref } from "./theme-toggle";
@@ -24,6 +24,7 @@ export function Nav({
   const main: Item[] = [
     { href: "/", label: "Overview", Icon: LayoutGrid },
     { href: "/review", label: "Antrian Review", Icon: Inbox, badge: reviewCount },
+    { href: "/buat", label: "Buat Konten", Icon: SquarePen },
     { href: "/radar", label: "Radar Topik", Icon: Radar },
     { href: "/kalender", label: "Kalender", Icon: CalendarDays },
     { href: "/analitik", label: "Analitik", Icon: BarChart3 },

@@ -2,4 +2,5 @@ Font di folder ini berlisensi SIL Open Font License 1.1 (diambil dari paket @fon
 - Anton — Vernon Adams
 - Inter — Rasmus Andersson
 - DM Serif Display — Colophon Foundry
+- JetBrains Mono — JetBrains
 https://openfontlicense.org

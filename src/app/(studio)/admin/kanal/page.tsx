@@ -19,6 +19,15 @@ const guides = {
       <li>Beri izin <code>threads_basic</code>, <code>threads_content_publish</code>, <code>threads_manage_insights</code>, lalu buat long-lived token.</li>
     </ol>
   ),
+  linkedin: (
+    <ol className="list-decimal space-y-1 pl-4">
+      <li>Di linkedin.com/developers buat app (wajib ditautkan ke sebuah LinkedIn Page, boleh page sendiri).</li>
+      <li>Tab Products: tambahkan <b>Share on LinkedIn</b> dan <b>Sign In with LinkedIn using OpenID Connect</b>.</li>
+      <li>Tab Auth → OAuth 2.0 tools / Token Generator: buat token dengan scope <code>openid profile w_member_social</code>.</li>
+      <li>Untuk posting sebagai halaman perusahaan perlu akses <b>Community Management API</b> (diajukan ke LinkedIn) + scope <code>w_organization_social</code>.</li>
+      <li>Token berlaku 60 hari — perbarui di sini sebelum habis.</li>
+    </ol>
+  ),
   x: (
     <ol className="list-decimal space-y-1 pl-4">
       <li>Di developer.x.com buat Project + App.</li>

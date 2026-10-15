@@ -6,7 +6,7 @@ import { ActButton, ActionForm } from "@/components/forms";
 import { removePublication, retryPublication, schedulePublish, unschedule } from "@/app/actions/publish";
 import type { ChannelView, Platform, Post, Publication } from "@/lib/types";
 
-const label: Record<Platform, string> = { instagram: "Instagram", threads: "Threads", x: "X" };
+const label: Record<Platform, string> = { instagram: "Instagram", threads: "Threads", x: "X", linkedin: "LinkedIn" };
 
 function StatusIcon({ s }: { s: Publication["status"] }) {
   if (s === "published") return <CheckCircle2 size={14} className="text-ok" />;

@@ -1,7 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
 import { ChevronLeft, ChevronRight, Download, ImageIcon, Eye, Wand2, AlertTriangle } from "lucide-react";
-import { SlidePreview } from "@/components/slide-preview";
 import { Msg } from "@/components/forms";
 import { renderNow } from "@/app/actions/publish";
 import type { Post } from "@/lib/types";
@@ -16,6 +15,8 @@ export function SlideViewer({ post, stale }: { post: Post; stale: boolean }) {
   const v = post.renderHash ?? post.renderedAt ?? "0";
   const bp = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   const src = (k: number) => `${bp}/m/${post.shortCode}/${k + 1}.jpg?v=${v}`;
+  // preview langsung dari isi terbaru (dirender server dengan template yang sama)
+  const live = (k: number, w = 1080) => `${bp}/review/${post.id}/slide/${k + 1}?w=${w}&v=${encodeURIComponent(post.updatedAt ?? v)}`;
   const showRender = mode === "render" && hasRender && i < post.renderCount;
 
   return (
@@ -53,7 +54,8 @@ export function SlideViewer({ post, stale }: { post: Post; stale: boolean }) {
             </div>
           </div>
         ) : (
-          <SlidePreview post={post} slide={post.slides[i]} index={i} />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={live(i)} alt={`Preview slide ${i + 1}`} className="aspect-[4/5] w-full rounded-lg bg-panel-2 object-cover" />
         )}
         {i > 0 && (
           <button onClick={() => setI(i - 1)} className="absolute top-1/2 left-2 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-black/70 text-white" aria-label="Sebelumnya">
@@ -78,7 +80,8 @@ export function SlideViewer({ post, stale }: { post: Post; stale: boolean }) {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={src(k)} alt="" className="aspect-[4/5] w-full object-cover" />
             ) : (
-              <SlidePreview post={post} slide={s} index={k} className="!rounded-none" />
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={live(k, 160)} alt="" loading="lazy" className="aspect-[4/5] w-full bg-panel-2 object-cover" />
             )}
           </button>
         ))}

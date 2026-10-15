@@ -3,8 +3,8 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-o
 import { db, schema } from "@/db";
 import { appUrl, getChannel, platformLabel, saveChannel, type Platform } from "../channels";
 import { getAllRenders, loadPostForRender, renderHashOf, renderPost } from "../render";
-import { composeInstagram, composeThreads, composeX } from "../publish/text";
-import { igInsights, igRefresh, publishInstagram, publishThreads, publishX, thInsights, thRefresh } from "../publish/platforms";
+import { composeInstagram, composeLinkedIn, composeThreads, composeX } from "../publish/text";
+import { igInsights, igRefresh, publishInstagram, publishLinkedIn, publishThreads, publishX, thInsights, thRefresh } from "../publish/platforms";
 import { logRun } from "./common";
 
 const { posts, publications, renders } = schema;
@@ -159,6 +159,13 @@ async function publishTo(platform: Platform, x: NonNullable<Awaited<ReturnType<t
     if (!base?.startsWith("https://") && !process.env.ALLOW_HTTP_MEDIA) throw new Error("APP_URL harus https publik (Threads mengambil gambar dari URL)");
     const idxs = nonCta.length ? nonCta : all;
     return publishThreads(ch.creds, mediaUrls(base!, p.shortCode, idxs, v), composeThreads(src, link));
+  }
+  if (platform === "linkedin") {
+    const ch = await getChannel("linkedin");
+    if (!ch.enabled || !ch.creds) throw new Error("Kanal LinkedIn belum aktif");
+    // LinkedIn: semua slide (dokumen PDF); slide CTA "link di bio" dilewati karena link ada di teks
+    const idxs = nonCta.length ? nonCta : all;
+    return publishLinkedIn(ch.creds, imgs.filter((r) => idxs.includes(r.idx)).map((r) => r.data), composeLinkedIn(src, link), p.headline);
   }
   const ch = await getChannel("x");
   if (!ch.enabled || !ch.creds) throw new Error("Kanal X belum aktif");

@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { CheckSquare, X, Check } from "lucide-react";
-import { SlidePreview } from "@/components/slide-preview";
 import { bulkSetStatus } from "@/app/actions/studio";
 import type { Post } from "@/lib/types";
 
@@ -50,7 +49,8 @@ export function ReviewGrid({ posts, ago }: { posts: Post[]; ago: Record<number, 
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/m/${p.shortCode}/1.jpg?v=${p.renderHash ?? ""}`} alt="" loading="lazy" className="aspect-[4/5] w-full rounded-t-xl object-cover" />
                 ) : (
-                  <SlidePreview post={p} slide={p.slides[0]} className="!rounded-none !rounded-t-xl" />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/review/${p.id}/slide/1?w=400&v=${encodeURIComponent(p.updatedAt)}`} alt="" loading="lazy" className="aspect-[4/5] w-full rounded-t-xl bg-panel-2 object-cover" />
                 )}
                 <span className="absolute top-2 left-2 rounded bg-black/70 px-1.5 text-[10px] font-semibold text-white">
                   1/{p.slides.length}

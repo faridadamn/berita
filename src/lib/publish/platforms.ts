@@ -1,5 +1,5 @@
 import "server-only";
-import type { InstagramCreds, ThreadsCreds, XCreds } from "../channels";
+import type { InstagramCreds, LinkedInCreds, ThreadsCreds, XCreds } from "../channels";
 import { oauth1Header } from "./oauth1";
 
 export class PublishError extends Error {}
@@ -205,4 +205,117 @@ export async function publishX(c: XCreds, images: Buffer[], text: string, userna
   const id = j.data?.id;
   if (!id) throw new PublishError("X tidak mengembalikan id post");
   return { remoteId: id, permalink: `https://x.com/${username || "i/web"}/status/${id}` };
+}
+
+/* ───────────────────────── LinkedIn ───────────────────────── */
+
+const liBase = (c: LinkedInCreds) => (c.apiBase || "https://api.linkedin.com").replace(/\/+$/, "");
+const liHeaders = (c: LinkedInCreds, json = true): Record<string, string> => ({
+  authorization: `Bearer ${c.accessToken}`,
+  "LinkedIn-Version": c.version || "202609",
+  "X-Restli-Protocol-Version": "2.0.0",
+  ...(json ? { "content-type": "application/json" } : {}),
+});
+
+/** Teks "little text" LinkedIn: karakter khusus wajib di-escape; #tag diubah jadi template hashtag supaya tetap bisa diklik. */
+export function liEscape(text: string) {
+  const esc = (s: string) => s.replace(/[\\|{}@\[\]()<>*_~]/g, (c) => `\\${c}`);
+  return text
+    .split(/(#[\p{L}\p{N}_]+)/u)
+    .map((part) => (/^#[\p{L}\p{N}_]+$/u.test(part) ? `{hashtag|\\#|${part.slice(1)}}` : esc(part).replace(/#/g, "\\#")))
+    .join("");
+}
+
+/** Nama & URN akun dari token (butuh scope openid + profile). */
+export async function liMe(c: Pick<LinkedInCreds, "accessToken" | "apiBase" | "version">) {
+  const j = await call(`${liBase(c as LinkedInCreds)}/v2/userinfo`, { headers: { authorization: `Bearer ${c.accessToken}` } });
+  return { urn: `urn:li:person:${j.sub}`, name: (j.name as string) ?? (j.given_name as string) ?? j.sub };
+}
+
+async function liPut(url: string, c: LinkedInCreds, body: Uint8Array, type: string) {
+  const r = await fetch(url, { method: "PUT", headers: { authorization: `Bearer ${c.accessToken}`, "content-type": type }, body: new Blob([new Uint8Array(body)], { type }), signal: AbortSignal.timeout(120_000) });
+  if (!r.ok) throw new PublishError(`Upload ke LinkedIn gagal: HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
+}
+
+async function liInit(c: LinkedInCreds, what: "documents" | "images") {
+  const j = await call(`${liBase(c)}/rest/${what}?action=initializeUpload`, {
+    method: "POST",
+    headers: liHeaders(c),
+    body: JSON.stringify({ initializeUploadRequest: { owner: c.author } }),
+  });
+  const v = j.value ?? j;
+  const urn = v.document ?? v.image;
+  if (!v.uploadUrl || !urn) throw new PublishError("LinkedIn tidak mengembalikan uploadUrl");
+  return { uploadUrl: v.uploadUrl as string, urn: urn as string };
+}
+
+async function liWaitAvailable(c: LinkedInCreds, what: "documents" | "images", urn: string) {
+  const t0 = Date.now();
+  for (;;) {
+    const j = await call(`${liBase(c)}/rest/${what}/${encodeURIComponent(urn)}`, { headers: liHeaders(c, false) });
+    if (j.status === "AVAILABLE") return;
+    if (j.status === "PROCESSING_FAILED") throw new PublishError("LinkedIn gagal memproses file");
+    if (Date.now() - t0 > MAX_WAIT_MS) throw new PublishError("LinkedIn terlalu lama memproses file");
+    await sleep(POLL_MS);
+  }
+}
+
+/** Gabungkan slide JPEG jadi PDF (carousel dokumen LinkedIn). */
+export async function slidesToPdf(images: Buffer[], title: string) {
+  const { PDFDocument } = await import("pdf-lib");
+  const pdf = await PDFDocument.create();
+  pdf.setTitle(title);
+  pdf.setProducer("Berita Studio");
+  for (const img of images) {
+    const j = await pdf.embedJpg(img);
+    const page = pdf.addPage([j.width, j.height]);
+    page.drawImage(j, { x: 0, y: 0, width: j.width, height: j.height });
+  }
+  return pdf.save();
+}
+
+export async function publishLinkedIn(c: LinkedInCreds, images: Buffer[], text: string, title: string): Promise<PublishResult> {
+  let content: Record<string, unknown>;
+  if (c.mode === "images" || images.length === 1) {
+    const ids: string[] = [];
+    for (const img of images.slice(0, 20)) {
+      const { uploadUrl, urn } = await liInit(c, "images");
+      await liPut(uploadUrl, c, new Uint8Array(img), "image/jpeg");
+      ids.push(urn);
+    }
+    content = ids.length === 1 ? { media: { id: ids[0], altText: title.slice(0, 300) } } : { multiImage: { images: ids.map((id) => ({ id, altText: title.slice(0, 300) })) } };
+  } else {
+    const pdf = await slidesToPdf(images, title);
+    const { uploadUrl, urn } = await liInit(c, "documents");
+    await liPut(uploadUrl, c, pdf, "application/pdf");
+    await liWaitAvailable(c, "documents", urn);
+    content = { media: { id: urn, title: title.slice(0, 200) } };
+  }
+  const res = await fetch(`${liBase(c)}/rest/posts`, {
+    method: "POST",
+    headers: liHeaders(c),
+    body: JSON.stringify({
+      author: c.author,
+      commentary: liEscape(text),
+      visibility: "PUBLIC",
+      distribution: { feedDistribution: "MAIN_FEED", targetEntities: [], thirdPartyDistributionChannels: [] },
+      content,
+      lifecycleState: "PUBLISHED",
+      isReshareDisabledByAuthor: false,
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    let msg = t.slice(0, 300);
+    try {
+      msg = JSON.parse(t).message ?? msg;
+    } catch {
+      /* teks mentah */
+    }
+    throw new PublishError(`HTTP ${res.status}: ${msg}`);
+  }
+  const id = res.headers.get("x-restli-id") ?? res.headers.get("x-linkedin-id");
+  if (!id) throw new PublishError("LinkedIn tidak mengembalikan id post");
+  return { remoteId: id, permalink: `https://www.linkedin.com/feed/update/${id}/` };
 }

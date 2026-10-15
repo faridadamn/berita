@@ -3,12 +3,13 @@ import { useState } from "react";
 import { Check, Copy, Download } from "lucide-react";
 import { ActionForm } from "@/components/forms";
 import { markManual } from "@/app/actions/publish";
-import { LIMITS, composeInstagram, composeThreads, composeX, xLength } from "@/lib/publish/text";
+import { LIMITS, composeInstagram, composeLinkedIn, composeThreads, composeX, xLength } from "@/lib/publish/text";
 import type { Platform, Post, Publication } from "@/lib/types";
 
 const tabs: { key: Platform; label: string; hint: string }[] = [
   { key: "instagram", label: "Instagram", hint: "Caption + hashtag. Upload semua slide sebagai carousel; link artikel lewat link di bio (/baca)." },
   { key: "threads", label: "Threads", hint: "Semua slide kecuali slide CTA. Link artikel sudah ada di teks." },
+  { key: "linkedin", label: "LinkedIn", hint: "Unggah PDF sebagai dokumen (carousel bisa digeser) lewat 'Tambah dokumen'. Link artikel sudah ada di teks." },
   { key: "x", label: "X", hint: "Maks 4 gambar: cover + slide isi. Link artikel sudah ada di teks (dihitung 23 karakter)." },
 ];
 
@@ -17,11 +18,11 @@ export function CopyPanel({ post, link, pubs }: { post: Post; link: string; pubs
   const [tab, setTab] = useState<Platform>("instagram");
   const [copied, setCopied] = useState(false);
   const src = { headline: post.headline, caption: post.caption, hashtags: post.hashtags, platformText: post.platformText };
-  const text = tab === "instagram" ? composeInstagram(src) : tab === "threads" ? composeThreads(src, link) : composeX(src, link);
+  const text = tab === "instagram" ? composeInstagram(src) : tab === "threads" ? composeThreads(src, link) : tab === "linkedin" ? composeLinkedIn(src, link) : composeX(src, link);
   const len = tab === "x" ? xLength(text) : [...text].length;
   const limit = LIMITS[tab];
   const done = pubs.find((p) => p.platform === tab && p.status === "published");
-  const imgCount = tab === "instagram" ? post.renderCount : tab === "x" ? Math.min(4, post.slides.filter((s) => s.kind !== "cta").length) : post.slides.filter((s) => s.kind !== "cta").length;
+  const imgCount = tab === "instagram" || tab === "linkedin" ? post.renderCount : tab === "x" ? Math.min(4, post.slides.filter((s) => s.kind !== "cta").length) : post.slides.filter((s) => s.kind !== "cta").length;
 
   return (
     <div className="space-y-3">
@@ -50,11 +51,15 @@ export function CopyPanel({ post, link, pubs }: { post: Post; link: string; pubs
         >
           {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "Tersalin" : `Salin teks ${tabs.find((t) => t.key === tab)!.label}`}
         </button>
-        {post.renderCount > 0 && (
+        {post.renderCount > 0 && tab === "linkedin" ? (
+          <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/review/${post.id}/pdf`} className="btn" download>
+            <Download size={13} /> PDF carousel
+          </a>
+        ) : post.renderCount > 0 ? (
           <a href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/review/${post.id}/download`} className="btn" download>
             <Download size={13} /> Gambar (pakai {imgCount})
           </a>
-        )}
+        ) : null}
         <span className={`ml-auto text-[11px] ${len > limit ? "text-danger" : "text-dim"}`}>
           {len}/{limit}
         </span>

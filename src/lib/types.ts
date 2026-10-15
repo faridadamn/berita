@@ -2,9 +2,9 @@ export type AgentKey = "scout" | "analis" | "copywriter" | "designer";
 
 export type PostStatus = "review" | "approved" | "scheduled" | "posting" | "posted" | "failed" | "rejected";
 
-export type TemplateKey = "stabilo" | "putih" | "foto";
+import type { ContentType, Slide, TemplateKey } from "./content";
+export type { ContentType, Slide, TemplateKey };
 
-export type Slide = { kind: "cover" | "body" | "cta"; headline: string; body?: string };
 
 export type Post = {
   id: number;
@@ -27,6 +27,7 @@ export type Post = {
   postedAt: string | null;
   igPermalink: string | null;
   createdAt: string;
+  updatedAt: string;
   views: number;
   reach: number;
   likes: number;
@@ -38,14 +39,17 @@ export type Post = {
   imageUrl: string | null;
   /** seed warna placeholder kalau tidak ada gambar */
   hue: number;
-  platformText: { threads?: string; x?: string };
+  platformText: { threads?: string; x?: string; linkedin?: string };
+  contentType: ContentType;
+  /** pustaka gambar post */
+  images: string[];
   renderCount: number;
   renderedAt: string | null;
   renderHash: string | null;
   renderError: string | null;
 };
 
-export type Platform = "instagram" | "threads" | "x";
+export type Platform = "instagram" | "threads" | "x" | "linkedin";
 
 export type Publication = {
   id: number;
@@ -95,6 +99,8 @@ export type Source = {
   lastFetchedAt: string | null;
   lastError: string | null;
   topics24h: number;
+  kind: string;
+  defaultFormat: string | null;
 };
 
 export type Agent = {

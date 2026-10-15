@@ -3,9 +3,9 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { decrypt, encrypt } from "./crypto";
 
-export type Platform = "instagram" | "threads" | "x";
-export const PLATFORMS: Platform[] = ["instagram", "threads", "x"];
-export const platformLabel: Record<Platform, string> = { instagram: "Instagram", threads: "Threads", x: "X" };
+export type Platform = "instagram" | "threads" | "x" | "linkedin";
+export const PLATFORMS: Platform[] = ["instagram", "threads", "x", "linkedin"];
+export const platformLabel: Record<Platform, string> = { instagram: "Instagram", threads: "Threads", x: "X", linkedin: "LinkedIn" };
 
 export type InstagramCreds = {
   /** graph.instagram.com (Instagram Login) atau graph.facebook.com (Facebook Login / Page) */
@@ -17,7 +17,12 @@ export type InstagramCreds = {
 };
 export type ThreadsCreds = { userId: string; accessToken: string; apiBase?: string };
 export type XCreds = { apiKey: string; apiSecret: string; accessToken: string; accessSecret: string; apiBase?: string };
-export type CredsOf = { instagram: InstagramCreds; threads: ThreadsCreds; x: XCreds };
+/**
+ * LinkedIn: token OAuth dengan scope w_member_social (profil) atau w_organization_social (halaman perusahaan).
+ * author = urn:li:person:<id> atau urn:li:organization:<id>. mode: "document" (PDF carousel) atau "images".
+ */
+export type LinkedInCreds = { accessToken: string; author: string; mode: "document" | "images"; version: string; apiBase?: string };
+export type CredsOf = { instagram: InstagramCreds; threads: ThreadsCreds; x: XCreds; linkedin: LinkedInCreds };
 
 export type Channel<P extends Platform = Platform> = {
   platform: P;

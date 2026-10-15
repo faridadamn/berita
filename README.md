@@ -1,6 +1,6 @@
 # Berita Studio
 
-Dashboard redaksi konten berbasis AI untuk Instagram, Threads, dan X. Agen menyiapkan draft, tim yang menyetujui:
+Dashboard redaksi konten berbasis AI untuk Instagram, Threads, X, dan LinkedIn. Agen menyiapkan draft, tim yang menyetujui:
 
 ```
 Sumber RSS ─▶ Scout ─▶ Analis ─▶ Copywriter ─▶ Designer (JPG) ─▶ Antrian Review ─▶ Jadwal ─▶ Publisher ─▶ Instagram / Threads / X
@@ -73,9 +73,29 @@ Pilih salah satu:
 
 Tombol **Cari topik sekarang** menjalankan satu putaran langsung (abaikan jam kerja).
 
+## Jenis konten
+
+| Jenis | Isi carousel |
+|---|---|
+| Berita | Cover → 2-4 slide isi → CTA "baca lengkapnya" |
+| Tutorial | Cover → yang perlu disiapkan → langkah bernomor (boleh dengan kode/perintah) → CTA |
+| Review | Cover → apa itu → daftar fitur → cara mulai (kode) → verdict (nilai /10, kelebihan, kekurangan) → CTA |
+| Tips | Cover → 4-7 tips bernomor → CTA |
+| Opini | Cover → 3-4 poin argumen → CTA |
+
+Analis menyarankan jenis per topik; sumber bisa punya jenis bawaan (mis. GitHub → Review). Di halaman review ada **Tulis ulang dengan AI** untuk mengganti jenis/arahan.
+
+**Buat Konten** (menu): tempel link — artikel, **repo GitHub** (README, bintang, bahasa, lisensi dibaca otomatis), atau **video YouTube** — atau tulis ide saja (tanpa sumber: wajib cek fakta). Draft langsung ditulis & dibuka di halaman review.
+
+## Sumber topik
+
+RSS/Atom biasa, plus preset: **Reddit**, **YouTube**, **Hacker News**, **Product Hunt**, **Bluesky**, **Mastodon**, **Telegram** (kanal publik), **GitHub naik daun** (repo baru yang cepat dapat bintang, via GitHub Search API), dan **X / Instagram / TikTok lewat RSSHub** (sebaiknya instance sendiri). Setiap sumber bisa diberi jenis konten bawaan. Post Telegram yang menautkan artikel akan membaca artikelnya.
+
 ## Designer (render gambar)
 
-Tiap slide dirender jadi JPEG 1080×1350 dengan template yang sama persis dengan preview (Stabilo / Putih / Foto penuh), memakai foto dari artikel (og:image / RSS). Dibuat otomatis setelah Copywriter, dan diulang kalau isi slide/template diedit (**Simpan & render ulang**). Gambar disimpan di Postgres (tabel `renders`) dan disajikan publik di `/m/<kode>/<n>.jpg`. Di halaman review ada **Download semua** (ZIP + caption) dan per slide.
+Tiap slide dirender jadi JPEG 1080×1350 (4:5 — pas untuk IG, LinkedIn, Threads). 7 template: **Stabilo, Putih editorial, Foto penuh, Minimal (LinkedIn), Gelap tech, Split, Koran**, dan 7 jenis slide: cover, isi, langkah, daftar, kode, verdict, CTA. Preview di dashboard memakai renderer yang sama, dan pemilih template menampilkan thumbnail asli tiap template.
+
+**Gambar per slide**: tiap post punya pustaka gambar (otomatis dari artikel: og:image + gambar di dalam artikel; gambar OpenGraph repo GitHub; thumbnail YouTube). Di editor kamu bisa memilih gambar berbeda untuk tiap slide, **mengunggah** gambar sendiri, menempel URL, **Ambil dari artikel**, atau **cari foto stok Pexels** (`PEXELS_API_KEY`). Dibuat otomatis setelah Copywriter, dan diulang kalau isi slide/template diedit (**Simpan & render ulang**). Gambar disimpan di Postgres (tabel `renders`) dan disajikan publik di `/m/<kode>/<n>.jpg`. Di halaman review ada **Download semua** (ZIP + caption) dan per slide.
 
 ## Posting: Instagram, Threads, X, atau manual
 
@@ -86,6 +106,7 @@ Sambungkan akun di **Admin → Kanal** (panduan singkat ada di tiap kartu; krede
 | Instagram | Carousel semua slide + caption + hashtag | Akun Business/Creator. Butuh `APP_URL` https publik. Token Instagram Login diperpanjang otomatis |
 | Threads | Carousel tanpa slide CTA + teks Threads + shortlink | Butuh `APP_URL` https publik. Token diperpanjang otomatis |
 | X | Maks 4 gambar (cover + isi) + teks X + shortlink | OAuth 1.0a (API Key/Secret + Access Token/Secret, izin Read & Write). Batas posting tergantung paket API X |
+| LinkedIn | **Carousel PDF (dokumen)** atau galeri gambar + teks LinkedIn + shortlink | Token scope `openid profile w_member_social` (profil). Halaman perusahaan: `w_organization_social` (Community Management API). Token 60 hari, perbarui manual. Ada tombol unduh PDF untuk posting manual |
 | Manual | Panel **Salin untuk posting manual**: teks final per platform + download gambar, lalu **Tandai sudah diposting** | Tidak butuh kanal apa pun |
 
 - Teks Threads & X dibuat Copywriter (bisa diedit); shortlink artikel ditambahkan otomatis.

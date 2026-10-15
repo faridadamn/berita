@@ -18,6 +18,12 @@ const fields: Record<ChannelView["platform"], FieldDef[]> = {
     { key: "userId", label: "Threads User ID", placeholder: "me", hint: "Boleh 'me'." },
     { key: "accessToken", label: "Access token (long-lived)", secret: true, hint: "Scope: threads_basic, threads_content_publish, threads_manage_insights. Diperpanjang otomatis." },
   ],
+  linkedin: [
+    { key: "accessToken", label: "Access token", secret: true, hint: "Scope: openid, profile, w_member_social (profil). Halaman perusahaan butuh w_organization_social. Token berlaku 60 hari." },
+    { key: "mode", label: "Bentuk post", options: ["document", "images"], hint: "document = carousel PDF yang bisa digeser (paling populer); images = galeri foto." },
+    { key: "author", label: "Posting sebagai (opsional)", placeholder: "kosong = profil kamu · urn:li:organization:123", hint: "Isi URN halaman perusahaan kalau mau posting sebagai Page." },
+    { key: "version", label: "LinkedIn-Version", placeholder: "202609", hint: "Format YYYYMM. Ganti kalau LinkedIn menolak versi lama." },
+  ],
   x: [
     { key: "apiKey", label: "API Key (Consumer Key)", secret: true },
     { key: "apiSecret", label: "API Key Secret", secret: true },
@@ -43,6 +49,9 @@ export function ChannelCard({ c, guide }: { c: ChannelView; guide: React.ReactNo
           <p className="text-[12px] text-muted">
             {c.accountName ? `@${c.accountName}` : c.configured ? "Belum terverifikasi" : "Belum tersambung"}
             {c.tokenRefreshedAt && c.platform !== "x" && ` · token diperbarui ${new Date(c.tokenRefreshedAt).toLocaleDateString("id-ID")}`}
+            {c.platform === "linkedin" && c.tokenRefreshedAt && Date.now() - new Date(c.tokenRefreshedAt).getTime() > 50 * 86_400_000 && (
+              <span className="text-copy"> · token hampir kedaluwarsa (60 hari) — buat token baru</span>
+            )}
           </p>
         </div>
         {c.configured && (

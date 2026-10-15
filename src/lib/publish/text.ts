@@ -6,10 +6,10 @@ export type TextSource = {
   headline: string;
   caption: string;
   hashtags: string[];
-  platformText: { threads?: string; x?: string };
+  platformText: { threads?: string; x?: string; linkedin?: string };
 };
 
-export const LIMITS = { instagram: 2200, threads: 500, x: 280 } as const;
+export const LIMITS = { instagram: 2200, threads: 500, x: 280, linkedin: 3000 } as const;
 
 /** Panjang ala X: URL = 23, karakter di luar Latin/umum (emoji, CJK) = 2. */
 export function xLength(s: string) {
@@ -43,6 +43,15 @@ export function defaultX(src: TextSource) {
 export function composeInstagram(src: TextSource) {
   const tags = src.hashtags.join(" ");
   return cut(tags ? `${src.caption.trim()}\n\n${tags}` : src.caption.trim(), LIMITS.instagram);
+}
+
+/** LinkedIn: teks khusus (atau caption), hashtag di akhir, link artikel di bawah. */
+export function composeLinkedIn(src: TextSource, link: string | null) {
+  const base = (src.platformText.linkedin?.trim() || src.caption.trim()).replace(/\n*(link (ada )?di bio|klik link di bio)[^\n]*$/i, "");
+  const hasTags = /(^|\s)#\w/.test(base);
+  const tags = hasTags ? "" : src.hashtags.slice(0, 4).join(" ");
+  const tail = [link ? `🔗 ${link}` : "", tags].filter(Boolean).join("\n\n");
+  return cut(base, LIMITS.linkedin - [...tail].length - 4) + (tail ? `\n\n${tail}` : "");
 }
 
 export function composeThreads(src: TextSource, link: string | null) {

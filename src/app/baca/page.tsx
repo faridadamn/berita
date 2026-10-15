@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { SlidePreview } from "@/components/slide-preview";
 import { basePath, brand } from "@/lib/config";
 import { getPublishedPosts } from "@/lib/data";
 
@@ -33,7 +32,7 @@ export default async function BacaPage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={`${basePath}/m/${p.shortCode}/1.jpg?v=${p.renderHash ?? ""}`} alt={p.headline} loading="lazy" className="aspect-[4/5] w-full object-cover" />
               ) : (
-                <SlidePreview post={p} slide={p.slides[0]} className="!rounded-none" />
+                <div className="grid aspect-[4/5] w-full place-items-center bg-neutral-800 p-2 text-center text-[10px] font-semibold text-white">{p.headline}</div>
               )}
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 px-1 pt-3 pb-0.5 text-[9px] font-semibold text-white">
                 {p.sourceName}

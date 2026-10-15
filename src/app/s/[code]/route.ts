@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const post = await getPostByShortCode(code);
-  if (!post) return NextResponse.redirect(`${publicBase(req)}/baca`, 302);
+  if (!post || !/^https?:\/\//.test(post.sourceUrl)) return NextResponse.redirect(`${publicBase(req)}/baca`, 302);
   // jangan hitung bot / preview link (WhatsApp, Telegram, crawler) dan prefetch browser
   const ua = req.headers.get("user-agent") ?? "";
   const prefetch = req.headers.get("purpose") === "prefetch" || req.headers.get("sec-purpose")?.includes("prefetch") || req.headers.has("next-router-prefetch");

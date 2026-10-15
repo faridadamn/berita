@@ -3,9 +3,10 @@ import { XMLParser } from "fast-xml-parser";
 import { and, eq, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getSettings } from "../settings";
+import { githubOgImage, isContentType } from "../content";
 import { UA, logRun, stripHtml } from "./common";
 
-type FeedItem = { title: string; url: string; summary: string; imageUrl: string | null; publishedAt: Date | null };
+export type FeedItem = { title: string; url: string; summary: string; imageUrl: string | null; images?: string[]; publishedAt: Date | null; meta?: Record<string, string | number> };
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -36,8 +37,8 @@ function imageOf(it: Record<string, any>, html: string): string | null {
   for (const m of media) {
     if (m?.["@url"] && (!m["@medium"] || m["@medium"] === "image") && !/\.(mp4|mp3)(\?|$)/i.test(m["@url"])) return m["@url"];
   }
-  const thumb = arr(it["media:thumbnail"])[0];
-  if (thumb?.["@url"]) return thumb["@url"];
+  const thumb = arr(it["media:thumbnail"])[0] ?? arr(it["media:group"]?.["media:thumbnail"])[0];
+  if (thumb?.["@url"]) return String(thumb["@url"]).replace(/\/hqdefault\.jpg$/, "/maxresdefault.jpg");
   for (const e of arr(it.enclosure)) if (e?.["@url"] && String(e["@type"] ?? "").startsWith("image")) return e["@url"];
   return firstImg(html);
 }
@@ -71,7 +72,7 @@ export function parseFeed(xml: string): FeedItem[] {
     const link = links.find((l) => !l["@rel"] || l["@rel"] === "alternate") ?? links[0];
     const url = link?.["@href"] ?? text(e.id);
     if (!url) continue;
-    const html = text(e.content) || text(e.summary);
+    const html = text(e.content) || text(e.summary) || text(e["media:group"]?.["media:description"]);
     const date = text(e.published) || text(e.updated);
     out.push({
       title: stripHtml(text(e.title)),
@@ -82,6 +83,68 @@ export function parseFeed(xml: string): FeedItem[] {
     });
   }
   return out;
+}
+
+type Source = typeof schema.sources.$inferSelect;
+
+/** Ambil item dari satu sumber sesuai jenisnya. */
+export async function fetchItems(src: Source): Promise<FeedItem[]> {
+  if (src.kind === "github") return fetchGithubTrending(src.config ?? {});
+  if (src.kind === "telegram") return fetchTelegram(src.feedUrl);
+  const res = await fetch(src.feedUrl, {
+    headers: { "user-agent": UA, accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return parseFeed(await res.text());
+}
+
+/** Repo baru yang cepat naik bintang (GitHub Search API). config: { language, topic, minStars, days } */
+async function fetchGithubTrending(cfg: Record<string, string | number>): Promise<FeedItem[]> {
+  const days = Number(cfg.days) || 7;
+  const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  const q = [`created:>${since}`, `stars:>=${Number(cfg.minStars) || 50}`, cfg.language ? `language:${cfg.language}` : "", cfg.topic ? `topic:${cfg.topic}` : ""].filter(Boolean).join(" ");
+  const h: Record<string, string> = { "user-agent": UA, accept: "application/vnd.github+json" };
+  if (process.env.GITHUB_TOKEN) h.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+  const base = (process.env.GITHUB_API_BASE ?? "https://api.github.com").replace(/\/+$/, "");
+  const r = await fetch(`${base}/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&per_page=15`, { headers: h, signal: AbortSignal.timeout(20_000) });
+  if (!r.ok) throw new Error(`GitHub HTTP ${r.status}`);
+  const j = await r.json();
+  return (j.items ?? []).map((x: any): FeedItem => ({
+    title: `${x.full_name}${x.description ? ` — ${String(x.description).slice(0, 180)}` : ""}`,
+    url: x.html_url,
+    summary: `${x.description ?? ""}\n★ ${x.stargazers_count} · ${x.language ?? "-"} · ${(x.topics ?? []).slice(0, 6).join(", ")}`.trim(),
+    imageUrl: githubOgImage(x.html_url),
+    publishedAt: x.created_at ? new Date(x.created_at) : null,
+    meta: { stars: x.stargazers_count, language: x.language ?? "", repo: x.full_name },
+  }));
+}
+
+/** Kanal Telegram publik lewat halaman web t.me/s/<kanal>. */
+async function fetchTelegram(url: string): Promise<FeedItem[]> {
+  const r = await fetch(url, { headers: { "user-agent": UA, accept: "text/html" }, signal: AbortSignal.timeout(20_000) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const html = await r.text();
+  const out: FeedItem[] = [];
+  for (const m of html.matchAll(/<div class="tgme_widget_message_wrap[\s\S]*?(?=<div class="tgme_widget_message_wrap|<\/section>)/g)) {
+    const block = m[0];
+    const post = /data-post="([^"]+)"/.exec(block)?.[1];
+    const textHtml = /<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/.exec(block)?.[1] ?? "";
+    const body = stripHtml(textHtml);
+    if (!post || body.length < 30) continue;
+    const photo = /tgme_widget_message_photo_wrap[^>]*background-image:url\('([^']+)'\)/.exec(block)?.[1] ?? null;
+    const date = /<time[^>]+datetime="([^"]+)"/.exec(block)?.[1];
+    const link = /<a[^>]+href="(https?:\/\/(?!t\.me)[^"]+)"/.exec(textHtml)?.[1];
+    out.push({
+      title: body.split("\n")[0].slice(0, 160),
+      url: `https://t.me/${post}`,
+      summary: body.slice(0, 1500) + (link ? `\nLink: ${link}` : ""),
+      imageUrl: photo,
+      publishedAt: date ? new Date(date) : null,
+      meta: link ? { link } : {},
+    });
+  }
+  return out.reverse().slice(0, 20);
 }
 
 /** Ambil semua feed aktif, simpan topik baru. */
@@ -99,12 +162,7 @@ export async function runScout() {
   await Promise.all(
     list.map(async (src) => {
       try {
-        const res = await fetch(src.feedUrl, {
-          headers: { "user-agent": UA, accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*" },
-          signal: AbortSignal.timeout(20_000),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const items = parseFeed(await res.text()).filter(
+        const items = (await fetchItems(src)).filter(
           (i) => i.title && /^https?:\/\//.test(i.url) && (!i.publishedAt || isNaN(+i.publishedAt) || i.publishedAt >= minDate),
         );
         if (items.length) {
@@ -117,7 +175,10 @@ export async function runScout() {
                 url: i.url,
                 summary: i.summary || null,
                 imageUrl: i.imageUrl,
+                images: [...new Set([i.imageUrl, ...(i.images ?? [])].filter((x): x is string => !!x))].slice(0, 8),
                 category: src.category,
+                format: isContentType(src.defaultFormat) ? src.defaultFormat : null,
+                meta: i.meta ?? {},
                 publishedAt: i.publishedAt && !isNaN(+i.publishedAt) ? i.publishedAt : null,
               })),
             )

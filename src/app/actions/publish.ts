@@ -3,9 +3,9 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, notInArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { assertAdmin, requireSession } from "@/lib/auth";
-import { getChannel, PLATFORMS, platformLabel, saveChannel, type Platform } from "@/lib/channels";
+import { getChannel, PLATFORMS, platformLabel, saveChannel, type LinkedInCreds, type Platform } from "@/lib/channels";
 import { ensureRendered, publishPost, settlePostStatus } from "@/lib/agents/publisher";
-import { igMe, thMe, xMe } from "@/lib/publish/platforms";
+import { igMe, liMe, thMe, xMe } from "@/lib/publish/platforms";
 import { renderPost } from "@/lib/render";
 import type { ActionState } from "./studio";
 
@@ -167,6 +167,11 @@ export async function saveChannelAction(platform: Platform, _: ActionState, f: F
   } else if (platform === "threads") {
     creds = { userId: str(f, "userId") || "me", accessToken: keep("accessToken") };
     if (!creds.accessToken) return { ok: false, message: "Access token wajib diisi" };
+  } else if (platform === "linkedin") {
+    const author = str(f, "author");
+    if (author && !/^urn:li:(person|organization):[\w-]+$/.test(author)) return { ok: false, message: "Author harus urn:li:person:… atau urn:li:organization:…" };
+    creds = { accessToken: keep("accessToken"), author, mode: str(f, "mode") === "images" ? "images" : "document", version: str(f, "version") || "202609" };
+    if (!creds.accessToken) return { ok: false, message: "Access token wajib diisi" };
   } else {
     creds = { apiKey: keep("apiKey"), apiSecret: keep("apiSecret"), accessToken: keep("accessToken"), accessSecret: keep("accessSecret") };
     if (Object.values(creds).some((v) => !v)) return { ok: false, message: "Keempat kunci X wajib diisi" };
@@ -185,10 +190,17 @@ export async function testChannel(platform: Platform): Promise<ActionState> {
   if (!ch.creds) return { ok: false, message: "Kredensial belum diisi" };
   try {
     const c = ch.creds as never;
-    const name = platform === "instagram" ? await igMe(c) : platform === "threads" ? await thMe(c) : await xMe(c);
+    let name: string;
+    if (platform === "linkedin") {
+      const li = ch.creds as LinkedInCreds;
+      const me = await liMe(li);
+      // author kosong → posting sebagai profil pemilik token
+      if (!li.author) await saveChannel("linkedin", { creds: { ...li, author: me.urn } });
+      name = li.author?.startsWith("urn:li:organization:") ? `${me.name} → halaman ${li.author.split(":").pop()}` : me.name;
+    } else name = platform === "instagram" ? await igMe(c) : platform === "threads" ? await thMe(c) : await xMe(c);
     await saveChannel(platform, { accountName: name ?? null, lastError: null, enabled: true });
     revalidatePath("/admin/kanal");
-    return { ok: true, message: `Tersambung sebagai @${name}` };
+    return { ok: true, message: `Tersambung sebagai ${platform === "linkedin" ? name : `@${name}`}` };
   } catch (e) {
     await saveChannel(platform, { lastError: (e as Error).message.slice(0, 300) });
     revalidatePath("/admin/kanal");

@@ -18,6 +18,14 @@ const sources = [
   { name: "HubSpot", siteUrl: "https://blog.hubspot.com", feedUrl: "https://blog.hubspot.com/marketing/rss.xml", category: "MARKETING" },
   { name: "Adweek", siteUrl: "https://www.adweek.com", feedUrl: "https://www.adweek.com/feed/", category: "MARKETING" },
   { name: "Marketing Dive", siteUrl: "https://www.marketingdive.com", feedUrl: "https://www.marketingdive.com/feeds/news/", category: "MARKETING" },
+  // medsos & komunitas — nonaktif dulu, aktifkan di Admin → Sumber Topik
+  { name: "Reddit r/socialmedia", siteUrl: "https://www.reddit.com/r/socialmedia", feedUrl: "https://www.reddit.com/r/socialmedia/top/.rss?t=day", category: "SOSMED", active: false },
+  { name: "Hacker News (150+ poin)", siteUrl: "https://news.ycombinator.com", feedUrl: "https://hnrss.org/frontpage?points=150", category: "TECH", active: false },
+  { name: "Product Hunt", siteUrl: "https://www.producthunt.com", feedUrl: "https://www.producthunt.com/feed", category: "PRODUK", active: false, defaultFormat: "review" },
+  {
+    name: "GitHub naik daun (AI)", kind: "github", siteUrl: "https://github.com/trending", feedUrl: "github:search?language=&topic=ai&stars=100&days=7",
+    config: { topic: "ai", minStars: 100, days: 7 }, category: "REPO", active: false, defaultFormat: "review",
+  },
 ];
 
 const brain = [

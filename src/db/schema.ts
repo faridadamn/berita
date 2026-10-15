@@ -2,6 +2,9 @@ import {
   pgTable, pgEnum, serial, text, integer, boolean, timestamp, jsonb, real, varchar, index, uniqueIndex, customType,
 } from "drizzle-orm/pg-core";
 
+import type { ContentType, Slide } from "../lib/content";
+export type { Slide };
+
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 export const roleEnum = pgEnum("role", ["admin", "editor"]);
@@ -23,7 +26,7 @@ export type RunDetail = {
   stack?: string;
 };
 export const providerKindEnum = pgEnum("provider_kind", ["openai", "gemini", "anthropic"]);
-export const platformEnum = pgEnum("platform", ["instagram", "threads", "x"]);
+export const platformEnum = pgEnum("platform", ["instagram", "threads", "x", "linkedin"]);
 export const publicationStatusEnum = pgEnum("publication_status", ["pending", "publishing", "published", "failed"]);
 
 export const users = pgTable("users", {
@@ -37,10 +40,19 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Sumber topik (RSS / Atom). */
+/**
+ * Sumber topik.
+ * kind: rss (RSS/Atom — termasuk Reddit, YouTube, HN, Product Hunt, Bluesky, RSSHub),
+ *       github (repo baru yang naik daun via GitHub Search API), telegram (kanal publik t.me/s/…)
+ */
 export const sources = pgTable("sources", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  kind: text("kind").notNull().default("rss"),
+  /** opsi khusus jenis sumber (mis. github: { language, minStars, days }) */
+  config: jsonb("config").$type<Record<string, string | number>>().notNull().default({}),
+  /** jenis konten bawaan untuk topik dari sumber ini (mis. GitHub → review) */
+  defaultFormat: text("default_format"),
   siteUrl: text("site_url").notNull(),
   feedUrl: text("feed_url").notNull().unique(),
   category: text("category").notNull(), // mis. AI, SOSMED, MARKETING
@@ -57,7 +69,13 @@ export const topics = pgTable("topics", {
   url: text("url").notNull().unique(),
   summary: text("summary"),
   imageUrl: text("image_url"),
+  /** semua kandidat gambar dari sumber (feed, artikel) */
+  images: jsonb("images").$type<string[]>().notNull().default([]),
   category: text("category"),
+  /** jenis konten (disarankan Analis / sumber / dipilih tim) */
+  format: text("format").$type<ContentType>(),
+  /** data tambahan: bintang repo, bahasa, catatan dari tim, dll */
+  meta: jsonb("meta").$type<Record<string, string | number>>().notNull().default({}),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   score: integer("score"), // 0-100 dari Analis
@@ -65,14 +83,14 @@ export const topics = pgTable("topics", {
   status: topicStatusEnum("status").notNull().default("new"),
 }, (t) => [index("topics_status_idx").on(t.status), index("topics_fetched_idx").on(t.fetchedAt)]);
 
-export type Slide = { kind: "cover" | "body" | "cta"; headline: string; body?: string };
 /** Teks khusus per platform (IG pakai caption + hashtag). Link shortlink ditambahkan otomatis saat publish. */
-export type PlatformText = { threads?: string; x?: string };
+export type PlatformText = { threads?: string; x?: string; linkedin?: string };
 
 /** Draft post hasil Copywriter (+ Designer di tahap 3), masuk antrian review. */
 export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   topicId: integer("topic_id").references(() => topics.id, { onDelete: "set null" }),
+  contentType: text("content_type").$type<ContentType>().notNull().default("berita"),
   kicker: text("kicker").notNull().default("AI"),
   headline: text("headline").notNull(),
   headlineAlternatives: jsonb("headline_alternatives").$type<string[]>().notNull().default([]),
@@ -81,6 +99,8 @@ export const posts = pgTable("posts", {
   template: text("template").notNull().default("stabilo"),
   format: text("format").notNull().default("carousel"), // carousel | single
   slides: jsonb("slides").$type<Slide[]>().notNull().default([]),
+  /** pustaka gambar post (URL atau asset:<id>) untuk dipilih per slide */
+  images: jsonb("images").$type<string[]>().notNull().default([]),
   platformText: jsonb("platform_text").$type<PlatformText>().notNull().default({}),
   renderedAt: timestamp("rendered_at", { withTimezone: true }),
   /** sidik isi saat terakhir dirender; beda dengan isi sekarang = perlu render ulang */
@@ -112,6 +132,18 @@ export const renders = pgTable("renders", {
   data: bytea("data").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [uniqueIndex("renders_post_idx").on(t.postId, t.idx)]);
+
+/** Gambar yang diunggah tim (disajikan publik di /a/:id). */
+export const assets = pgTable("assets", {
+  id: serial("id").primaryKey(),
+  mime: text("mime").notNull().default("image/jpeg"),
+  data: bytea("data").notNull(),
+  width: integer("width"),
+  height: integer("height"),
+  name: text("name"),
+  uploadedBy: integer("uploaded_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** Akun tujuan posting. Kredensial disimpan terenkripsi (JSON → AES-GCM). */
 export const channels = pgTable("channels", {
