@@ -46,6 +46,7 @@ export type CompleteResult = {
 export class AiError extends Error {}
 
 export const presets: { label: string; kind: ProviderKind; baseUrl: string; model: string }[] = [
+  { label: "Kenari.id", kind: "openai", baseUrl: "https://kenari.id/v1", model: "gemini-3-8-flash" },
   { label: "Gemini (API key)", kind: "gemini", baseUrl: "", model: "gemini-2.5-flash" },
   { label: "OpenAI", kind: "openai", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1-mini" },
   { label: "Claude (Anthropic)", kind: "anthropic", baseUrl: "", model: "claude-haiku-5-5" },

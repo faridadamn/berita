@@ -26,6 +26,8 @@ export async function loadChain(): Promise<ProviderConfig[]> {
   if (chain.length || rows.length) return chain;
 
   const env = process.env;
+  if (env.KENARI_API_KEY)
+    chain.push({ id: "env-kenari", name: "Kenari.id (env)", kind: "openai", baseUrl: env.KENARI_BASE_URL || "https://kenari.id/v1", model: env.KENARI_MODEL || "gemini-3-8-flash", apiKey: env.KENARI_API_KEY, priceIn: 0, priceOut: 0 });
   if (env.GEMINI_API_KEY)
     chain.push({ id: "env-gemini", name: "Gemini (env)", kind: "gemini", baseUrl: "", model: env.GEMINI_MODEL || "gemini-2.5-flash", apiKey: env.GEMINI_API_KEY, priceIn: 0, priceOut: 0 });
   if (env.OPENAI_API_KEY)
