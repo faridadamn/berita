@@ -163,7 +163,13 @@ export async function runScout() {
     list.map(async (src) => {
       try {
         const items = (await fetchItems(src)).filter(
-          (i) => i.title && /^https?:\/\//.test(i.url) && (!i.publishedAt || isNaN(+i.publishedAt) || i.publishedAt >= minDate),
+          (i) =>
+            i.title &&
+            /^https?:\/\//.test(i.url) &&
+            // Sumber GitHub dikecualikan dari filter umur global: kebaruan repo
+            // sudah diatur oleh parameter days di config sumber (bintang naik
+            // dalam N hari terakhir), bukan umur sejak repo dibuat.
+            (src.kind === "github" || !i.publishedAt || isNaN(+i.publishedAt) || i.publishedAt >= minDate),
         );
         if (items.length) {
           const inserted = await db()
