@@ -176,3 +176,35 @@ export function formatCount(n: number | null | undefined) {
   if (n >= 1000) return f(n / 1000) + "rb";
   return String(n);
 }
+
+/* ───────────── Video (Gerak) ───────────── */
+
+export type ShotKind = "hook" | "point" | "step" | "product" | "compare" | "cta";
+
+/** Satu shot video 9:16. Teks ≤ 5 kata (aturan Gerak: satu gagasan besar per shot). */
+export type Shot = {
+  kind: ShotKind;
+  text: string;
+  /** kata yang distabilo */
+  emph?: string;
+  /** label kecil (mis. "Praktis", "Pilihan aku") */
+  label?: string;
+  /** step: nomor; product: nomor urut (rekomendasi) */
+  n?: number;
+  productId?: number;
+  productIds?: number[];
+  pick?: number;
+};
+
+export const SHOT_KINDS: { key: ShotKind; label: string }[] = [
+  { key: "hook", label: "Pembuka" },
+  { key: "point", label: "Poin" },
+  { key: "step", label: "Langkah" },
+  { key: "product", label: "Produk" },
+  { key: "compare", label: "Bandingkan" },
+  { key: "cta", label: "Penutup" },
+];
+
+export type VideoOptions = { motionBlur?: boolean; music?: "beat" | "none" };
+
+export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;

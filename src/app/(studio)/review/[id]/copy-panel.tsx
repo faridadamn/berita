@@ -12,7 +12,7 @@ const tabs: { key: Tab; label: string; hint: string; extra?: boolean }[] = [
   { key: "threads", label: "Threads", hint: "Semua slide kecuali slide CTA. Link artikel sudah ada di teks." },
   { key: "linkedin", label: "LinkedIn", hint: "Unggah PDF sebagai dokumen (carousel bisa digeser) lewat 'Tambah dokumen'. Link artikel sudah ada di teks." },
   { key: "x", label: "X", hint: "Maks 4 gambar: cover + slide isi. Link artikel sudah ada di teks (dihitung 23 karakter)." },
-  { key: "tiktok", label: "TikTok / Shopee Video", hint: "Caption untuk video / photo mode TikTok, Shopee Video, atau Reels. Tautkan produk lewat keranjang kuning / fitur tag produk di aplikasinya.", extra: true },
+  { key: "tiktok", label: "TikTok / Shopee Video", hint: "Caption untuk TikTok, Shopee Video, atau Reels — pasangkan dengan MP4 dari panel Video (atau slide sebagai photo mode). Tautkan produk lewat keranjang kuning / fitur tag produk di aplikasinya.", extra: true },
   { key: "wa", label: "WA / Telegram", hint: "Pesan broadcast / grup / channel. Link produk sudah di dalam teks dan kliknya tercatat sebagai kanal 'wa'.", extra: true },
 ];
 

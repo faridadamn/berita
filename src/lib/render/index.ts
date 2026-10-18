@@ -1,6 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import satori from "satori";
 import sharp from "sharp";
@@ -106,6 +106,22 @@ async function loadLogo(ref: string | null): Promise<Logo | null> {
   }
   logoCache.set(ref, { at: Date.now(), logo });
   return logo;
+}
+
+/** Simpan gambar (URL / asset:<id>) ke file lokal — dipakai renderer video. null kalau gagal. */
+export async function imageToFile(ref: string | null, file: string, opts: { png?: boolean; max?: number } = {}): Promise<string | null> {
+  if (!ref) return null;
+  try {
+    const raw = await fetchImageBytes(ref);
+    if (!raw) return null;
+    const max = opts.max ?? 1400;
+    let img = sharp(raw).rotate().resize(max, max, { fit: "inside", withoutEnlargement: true });
+    img = opts.png ? img.png() : img.flatten({ background: "#ffffff" }).jpeg({ quality: 88 });
+    await writeFile(file, await img.toBuffer());
+    return file;
+  } catch {
+    return null;
+  }
 }
 
 /** Hilangkan karakter yang tidak ada di font (emoji dll) supaya tidak jadi kotak. */

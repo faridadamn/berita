@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   // samakan nilai untuk kode browser (dipakai di <img>/<a> yang tidak lewat next/link)
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
   // font untuk renderer PNG dibaca dari disk saat runtime
-  outputFileTracingIncludes: { "/**": ["./src/lib/render/fonts/**"] },
+  outputFileTracingIncludes: { "/**": ["./src/lib/render/fonts/**", "./scripts/video/**"] },
   serverExternalPackages: ["sharp"],
 };
 export default nextConfig;

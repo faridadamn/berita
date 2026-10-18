@@ -88,6 +88,7 @@ export async function runOps() {
     await step("stuck", flagStuck);
     await step("publisher", runPublisher);
     await step("designer", () => runDesigner());
+    await step("video", () => import("../video").then((m) => m.kick()));
     await step("insights", syncInsights);
     await step("tokens", refreshTokens);
   } finally {

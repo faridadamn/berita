@@ -2,7 +2,7 @@ import {
   pgTable, pgEnum, serial, text, integer, boolean, timestamp, jsonb, real, varchar, index, uniqueIndex, customType,
 } from "drizzle-orm/pg-core";
 
-import type { ContentType, ProductPlatform, Slide } from "../lib/content";
+import type { ContentType, ProductPlatform, Shot, Slide, VideoOptions } from "../lib/content";
 export type { Slide };
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
@@ -190,6 +190,26 @@ export const clicks = pgTable("clicks", {
   at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   referrer: text("referrer"),
 }, (t) => [index("clicks_post_idx").on(t.postId)]);
+
+/** Video 9:16 per post, dirender oleh engine Gerak (lihat scripts/video/gerak-build.mjs). */
+export const videos = pgTable("videos", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").notNull().unique().references(() => posts.id, { onDelete: "cascade" }),
+  /** draft | queued | rendering | done | failed */
+  status: text("status").notNull().default("draft"),
+  progress: real("progress").notNull().default(0),
+  script: jsonb("script").$type<Shot[]>().notNull().default([]),
+  options: jsonb("options").$type<VideoOptions>().notNull().default({}),
+  data: bytea("data"),
+  sizeBytes: integer("size_bytes"),
+  seconds: real("seconds"),
+  /** sidik isi saat dirender (beda = perlu render ulang) */
+  sourceHash: text("source_hash"),
+  error: text("error"),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  renderedAt: timestamp("rendered_at", { withTimezone: true }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("videos_status_idx").on(t.status)]);
 
 /** Katalog produk affiliate (mode jualan). */
 export const products = pgTable("products", {

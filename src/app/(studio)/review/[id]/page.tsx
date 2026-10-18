@@ -14,6 +14,8 @@ import { SlideViewer } from "./slide-viewer";
 import { PublishPanel } from "./publish-panel";
 import { CopyPanel } from "./copy-panel";
 import { getProducts } from "@/lib/products";
+import { gerakStatus, getVideo, videoSourceHash } from "@/lib/video";
+import { VideoPanel } from "./video-panel";
 
 const statusLabel: Record<string, string> = {
   review: "Perlu review", approved: "Disetujui", scheduled: "Terjadwal", posting: "Sedang posting",
@@ -25,7 +27,8 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const post = await getPost(Number(id));
   if (!post) notFound();
-  const [pubs, channels, raw, products] = await Promise.all([getPublications(post.id), getChannelViews(), loadPostForRender(post.id), getProducts()]);
+  const [pubs, channels, raw, products, video] = await Promise.all([getPublications(post.id), getChannelViews(), loadPostForRender(post.id), getProducts(), getVideo(post.id)]);
+  const gerak = gerakStatus();
   // katalog untuk editor slide produk: produk aktif + produk yang sudah dipakai post ini
   const catalog = products
     .filter((p) => p.active || post.productIds.includes(p.id))
@@ -51,6 +54,28 @@ export default async function ReviewDetail({ params }: { params: Promise<{ id: s
           <div className="card p-4">
             <SlideViewer post={post} stale={stale} />
           </div>
+          <VideoPanel
+            postId={post.id}
+            gerak={{ ok: gerak.ok, reason: gerak.reason }}
+            products={products.filter((p) => post.productIds.includes(p.id)).map((p) => ({ id: p.id, name: p.name }))}
+            publicUrl={base && video?.hasData ? `${base}/m/${post.shortCode}/video.mp4` : null}
+            video={
+              video
+                ? {
+                    status: video.status,
+                    progress: video.progress,
+                    script: video.script,
+                    options: video.options,
+                    hasData: video.hasData,
+                    seconds: video.seconds,
+                    sizeBytes: video.sizeBytes,
+                    error: video.error,
+                    renderedAt: video.renderedAt?.toISOString() ?? null,
+                    stale: !!raw && !!video.sourceHash && video.sourceHash !== videoSourceHash(raw, video.script, video.options),
+                  }
+                : null
+            }
+          />
           <section className="card p-4">
             <p className="mb-3 text-sm font-semibold">Salin untuk posting manual</p>
             <CopyPanel post={post} link={link} pubs={pubs} />

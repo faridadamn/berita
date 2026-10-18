@@ -18,6 +18,7 @@ Pembaca diarahkan ke artikel asli lewat shortlink `/s/:kode` (klik dihitung) dan
 | 2 | Postgres (Neon/lokal), AI multi-provider + fallback, agen Scout/Analis/Copywriter, penjadwal, admin (provider, sumber, tim, Brain, pengaturan) | ✅ |
 | 3 | Designer (render JPG), auto-post Instagram / Threads / X, salin manual, insights, perpanjang token | ✅ |
 | 4 | LinkedIn, 7 template + jenis slide, gambar per slide, sumber medsos, tutorial/review | ✅ |
+| 6 | Video 9:16 lewat engine Gerak (naskah AI, render di server, unduh MP4) | ✅ |
 | 5 | Brand Kit, mode jualan (katalog affiliate, konten promo/rekomendasi/perbandingan, link pelacak per kanal, etalase) | ✅ |
 
 ## Mulai cepat (lokal)
@@ -97,6 +98,18 @@ Analis menyarankan jenis per topik; sumber bisa punya jenis bawaan (mis. GitHub 
 **Admin → Brand Kit**: nama, handle, deskripsi akun (dipakai AI), 4 warna (utama, kedua, latar, teks + palet siap pakai), font judul & isi (Inter, Plus Jakarta Sans, Poppins, Montserrat, Space Grotesk, Anton, Bebas Neue, DM Serif Display, Playfair Display, atau **upload font sendiri** .ttf/.otf/.woff), logo (PNG/SVG, di header/footer/penutup), tata letak cover, ikon poin, dan sudut membulat. Preview langsung semua jenis slide.
 
 Template **Brand Kit** 100% mengikuti kit. Opsi *terapkan ke semua template* memakai font, warna aksen, dan/atau logo brand di 7 template lain. Setelah kit diubah, post yang terdampak ditandai "perlu render ulang". Nama/handle di kit menggantikan `NEXT_PUBLIC_BRAND_*` (env tetap jadi nilai awal).
+
+## Video 9:16 (Gerak)
+
+Panel **Video** di halaman review mengubah post jadi video Reels / TikTok / Shopee Video / Shorts memakai engine [Gerak](https://github.com/faridadamn/gerak):
+
+1. **Tulis naskah video dengan AI** — isi post diubah jadi 4–7 shot (maks 5 kata per shot, kata yang distabilo, label). Bisa diedit, diurutkan, ditambah shot produk/perbandingan. Kalau AI gagal, naskah dibuat dari slide.
+2. **Render video** — gaya "satu papan" ala Brand Kit (warna, font, logo): kamera pindah antar shot dan berganti ukuran (close-up ↔ wide), foto sampul / foto produk ikut melompat, rute kuas tergambar, harga produk dihitung + stempel diskon + lingkaran tangan, penutup extreme wide + handle. Musik & SFX sintetis bebas hak cipta (bisa dimatikan); motion blur opsional.
+3. Hasil MP4 1080×1920 bisa diputar & **diunduh**, plus link publik `/m/<kode>/video.mp4`.
+
+Render jalan di proses server sebagai child process (`scripts/video/gerak-build.mjs`), satu per satu (antrean), progres terlihat langsung. Di VPS 2 core, video ±20 detik selesai ±1–1,5 menit (motion blur ±3× lebih lama).
+
+Syarat di server: **FFmpeg**, Node 22.6+, dan Gerak — isi `GERAK_PATH` dengan folder repo gerak yang sudah `npm install` (mis. `/home/ubuntu/gerak`), atau pasang sebagai paket di `node_modules/gerak`. Tidak cocok untuk serverless (Vercel) karena render butuh CPU & waktu.
 
 ## Mode jualan (affiliate)
 
