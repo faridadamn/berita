@@ -81,8 +81,22 @@ const p = project({ title: spec.title ?? 'Berita', preset: 'reels', fps: FPS, ba
 const W = p.width; // 1080
 const H = p.height; // 1920
 p.effects({ grain: DARK ? 0.05 : 0.06, vignette: DARK ? 0.22 : 0.12 });
-if (spec.motionBlur) p.motionBlur({ samples: 6, shutter: 0.6 });
-const FX = spec.glow !== false;
+// Fitur baru Gerak (glow & motion blur, sejak commit 489e49b). Versi gerak lama tidak punya →
+// dicek dulu supaya video tetap jadi (tanpa efek) alih-alih error "Opsi layer glow tidak dikenal".
+const CAN_GLOW = (() => {
+  try {
+    project({ preset: 'reels' }).scene('cek', { duration: 1 }).layer('cek', { glow: { radius: 10 } });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const CAN_BLUR = typeof p.motionBlur === 'function';
+if (!CAN_GLOW || (spec.motionBlur && !CAN_BLUR)) {
+  console.error('Catatan: versi Gerak di server belum mendukung glow/motion blur — render tanpa efek. Update gerak (git pull) untuk efek lengkap.');
+}
+if (spec.motionBlur && CAN_BLUR) p.motionBlur({ samples: 6, shutter: 0.6 });
+const FX = spec.glow !== false && CAN_GLOW;
 
 // font: brand kit (woff/ttf), fallback font bawaan Gerak
 const HEAD = B.headFont?.file && existsSync(B.headFont.file) ? p.font(B.headFont.file, { family: B.headFont.family, weight: B.headFont.weight ?? 700 }) : 'Plus Jakarta Sans';
