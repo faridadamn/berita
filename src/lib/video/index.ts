@@ -14,7 +14,9 @@ import path from "node:path";
 import { and, asc, eq, lte, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { FONT_CHOICES, fontFamilyOf, isDisplayFont, kitRenderKey, type BrandKit } from "../brand";
-import { discountOf, formatCount, platformOf, type Shot, type VideoOptions } from "../content";
+import { STYLE_FOR, discountOf, formatCount, isContentType, isVideoStyle, platformOf, type Shot, type VideoOptions } from "../content";
+import { compose } from "./compose";
+import { mediaExists } from "./media";
 import { logRun } from "../agents/common";
 import { imageToFile, loadPostForRender, mainImageOf, type PostForRender } from "../render";
 import { getSettings } from "../settings";
@@ -108,7 +110,16 @@ export async function buildSpec(p: PostForRender, script: Shot[], options: Video
     };
   }
   const sales = p.productIds.length > 0;
+  const style = isVideoStyle(options.style) ? options.style : isContentType(p.contentType) ? STYLE_FOR[p.contentType] : "papan";
+  const vo = options.vo && (await mediaExists(options.vo.file)) ? options.vo : null;
+  const cam = options.cam && (await mediaExists(options.cam.file)) ? options.cam : null;
+  const split = !!cam && (options.layout === "split-top" || options.layout === "split-bottom");
   return {
+    style,
+    colors: options.colors === "style" ? "style" : "brand",
+    canvas: split ? { w: 1080, h: 1080 } : { w: 1080, h: 1920 },
+    // video diregangkan supaya VO / video sendiri tidak terpotong
+    minSeconds: Math.max(vo?.seconds ?? 0, cam?.seconds ?? 0) + (vo || cam ? 0.6 : 0),
     title: p.headline,
     fps: 30,
     bpm: 100,
@@ -201,11 +212,28 @@ async function render(postId: number) {
     if (!row.script.length) throw new Error("Naskah video kosong");
     const spec = await buildSpec(p, row.script, row.options, dir);
     const specFile = path.join(dir, "spec.json");
+    const needCompose = (!!row.options.vo && (await mediaExists(row.options.vo.file))) || (!!row.options.cam && (await mediaExists(row.options.cam.file)));
+    const gerakOut = path.join(dir, needCompose ? "gerak.mp4" : "video.mp4");
     const out = path.join(dir, "video.mp4");
     await writeFile(specFile, JSON.stringify(spec));
-    const result = await runBuilder(specFile, out, async (progress) => {
-      await db().update(videos).set({ progress }).where(eq(videos.postId, postId));
+    const share = needCompose ? 0.8 : 1;
+    const result = await runBuilder(specFile, gerakOut, async (progress) => {
+      await db().update(videos).set({ progress: progress * share }).where(eq(videos.postId, postId));
     });
+    if (needCompose) {
+      let last = 0;
+      await compose({
+        template: gerakOut,
+        out,
+        options: row.options,
+        accent: p.kit.colors.primary,
+        onProgress: (x) => {
+          if (Date.now() - last < 2000) return;
+          last = Date.now();
+          void db().update(videos).set({ progress: Math.min(0.99, share + x * (1 - share)) }).where(eq(videos.postId, postId));
+        },
+      });
+    }
     const data = await readFile(out);
     await db()
       .update(videos)

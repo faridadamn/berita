@@ -5,7 +5,8 @@ import { ArrowDown, ArrowUp, Clapperboard, Copy, Check, Download, Loader2, Plus,
 import { Msg } from "@/components/forms";
 import { generateVideoScript, saveVideo } from "@/app/actions/video";
 import type { ActionState } from "@/app/actions/studio";
-import { SHOT_KINDS, wordCount, type Shot, type ShotKind, type VideoOptions } from "@/lib/content";
+import { SHOT_KINDS, VIDEO_STYLES, wordCount, type Shot, type ShotKind, type VideoOptions } from "@/lib/content";
+import { MediaEditor, StylePicker } from "./video-options";
 
 const bp = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
@@ -47,6 +48,13 @@ export function VideoPanel({
   useEffect(() => {
     if (!dirty) setShots(JSON.parse(serverScript));
   }, [serverScript, dirty]);
+
+  // file VO / video sendiri & gaya dari server (setelah upload) → gabungkan ke opsi lokal
+  const serverMedia = JSON.stringify([video?.options?.vo ?? null, video?.options?.cam ?? null, video?.options?.style ?? null, video?.options?.layout ?? null]);
+  useEffect(() => {
+    const [vo, cam, style, layout] = JSON.parse(serverMedia);
+    setOpts((o) => ({ ...o, vo, cam: cam ? { ...cam, useAudio: o.cam && o.cam.file === cam.file ? o.cam.useAudio : cam.useAudio } : null, style: o.style ?? style, layout: cam ? (o.layout && o.layout !== "full" ? o.layout : layout ?? "pip") : "full" }));
+  }, [serverMedia]);
 
   // selama render: segarkan tiap 3 detik
   useEffect(() => {
@@ -193,6 +201,17 @@ export function VideoPanel({
               </div>
             );
           })}
+          <div className="space-y-1.5 border-t border-line pt-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[12px] font-semibold">Gaya video · <span className="font-normal text-muted">{VIDEO_STYLES.find((x) => x.key === opts.style)?.desc ?? "pilih gaya"}</span></p>
+              <select value={opts.colors ?? "brand"} onChange={(e) => { setOpts({ ...opts, colors: e.target.value as VideoOptions["colors"] }); setDirty(true); }} className="input !w-auto !py-1 text-[11px]">
+                <option value="brand">warna Brand Kit</option>
+                <option value="style">warna asli gaya</option>
+              </select>
+            </div>
+            <StylePicker value={opts.style} onChange={(style) => { setOpts({ ...opts, style }); setDirty(true); }} />
+          </div>
+          <MediaEditor postId={postId} opts={opts} onChange={(o) => { setOpts(o); setDirty(true); }} onUploaded={() => router.refresh()} />
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" className="btn !py-1 text-[11px]" onClick={() => { const at = Math.max(0, shots.length - 1); const n = [...shots]; n.splice(at, 0, { kind: "point", text: "" }); setShots(n); setDirty(true); }}>
               <Plus size={11} /> Shot

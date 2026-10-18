@@ -18,7 +18,7 @@ Pembaca diarahkan ke artikel asli lewat shortlink `/s/:kode` (klik dihitung) dan
 | 2 | Postgres (Neon/lokal), AI multi-provider + fallback, agen Scout/Analis/Copywriter, penjadwal, admin (provider, sumber, tim, Brain, pengaturan) | ✅ |
 | 3 | Designer (render JPG), auto-post Instagram / Threads / X, salin manual, insights, perpanjang token | ✅ |
 | 4 | LinkedIn, 7 template + jenis slide, gambar per slide, sumber medsos, tutorial/review | ✅ |
-| 6 | Video 9:16 lewat engine Gerak (naskah AI, render di server, unduh MP4) | ✅ |
+| 6 | Video 9:16 lewat engine Gerak: 10 gaya siap pakai, naskah AI, voice over, video sendiri (PIP / split) | ✅ |
 | 5 | Brand Kit, mode jualan (katalog affiliate, konten promo/rekomendasi/perbandingan, link pelacak per kanal, etalase) | ✅ |
 
 ## Mulai cepat (lokal)
@@ -104,8 +104,26 @@ Template **Brand Kit** 100% mengikuti kit. Opsi *terapkan ke semua template* mem
 Panel **Video** di halaman review mengubah post jadi video Reels / TikTok / Shopee Video / Shorts memakai engine [Gerak](https://github.com/faridadamn/gerak):
 
 1. **Tulis naskah video dengan AI** — isi post diubah jadi 4–7 shot (maks 5 kata per shot, kata yang distabilo, label). Bisa diedit, diurutkan, ditambah shot produk/perbandingan. Kalau AI gagal, naskah dibuat dari slide.
-2. **Render video** — gaya "satu papan" ala Brand Kit (warna, font, logo): kamera pindah antar shot dan berganti ukuran (close-up ↔ wide), foto sampul / foto produk ikut melompat, rute kuas tergambar, harga produk dihitung + stempel diskon + lingkaran tangan, penutup extreme wide + handle. Musik & SFX sintetis bebas hak cipta (bisa dimatikan); motion blur opsional.
-3. Hasil MP4 1080×1920 bisa diputar & **diunduh**, plus link publik `/m/<kode>/video.mp4`.
+2. **Pilih gaya** (10 template, diadaptasi dari referensi gaya Gerak; AI menyarankan sesuai jenis konten):
+
+   | Gaya | Ciri | Cocok untuk |
+   |---|---|---|
+   | Papan | satu papan Brand Kit, kamera pindah antar shot, foto melompat | semua |
+   | Struk kasir | struk thermal tercetak, coretan pulpen, stempel | promo, jualan langsung |
+   | Swiss poster | grid, angka raksasa, judul kapital per ketuk | tips, listicle |
+   | Risograph | 2 tinta meleset, halftone, Anton raksasa | launching, open PO |
+   | Editorial | serif majalah, foto bingkai lengkung | review, opini, produk premium |
+   | Buku tulis | tulisan tangan, stabilo, sticky note | tutorial, catatan |
+   | Retro 70-an | sunburst, pelangi, huruf groovy, lencana | promo musiman, event |
+   | Kolase tempel | huruf guntingan, selotip, polaroid, stiker | flash sale, giveaway |
+   | Data signal | gelap, angka dihitung, grafik tumbuh, batang harga | berita angka, perbandingan |
+   | Bauhaus | bentuk dasar berpindah per ketuk | tips, mindset |
+
+   Warna: aksen dari Brand Kit (default) atau warna asli gaya. Musik & SFX sintetis bebas hak cipta (bisa dimatikan); motion blur opsional.
+3. **Voice over** — rekam langsung di browser atau upload audio. **Video kamu sendiri** — upload MP4/MOV lalu pilih **PIP** (bulat/kotak, 4 pojok) atau **split atas-bawah** (template jadi kotak 1080×1080, video kamu 1080×840 di atas/bawah). Durasi video otomatis menyesuaikan VO / video kamu (maks 3 menit), musik mengecil otomatis saat ada suara.
+4. Hasil MP4 1080×1920 bisa diputar & **diunduh**, plus link publik `/m/<kode>/video.mp4`.
+
+File VO & video sendiri disimpan di disk server (`MEDIA_DIR`, default `./data/media`). Kalau lewat Nginx, naikkan `client_max_body_size` (mis. `700m`) supaya upload video tidak ditolak.
 
 Render jalan di proses server sebagai child process (`scripts/video/gerak-build.mjs`), satu per satu (antrean), progres terlihat langsung. Di VPS 2 core, video ±20 detik selesai ±1–1,5 menit (motion blur ±3× lebih lama).
 

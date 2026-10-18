@@ -205,6 +205,50 @@ export const SHOT_KINDS: { key: ShotKind; label: string }[] = [
   { key: "cta", label: "Penutup" },
 ];
 
-export type VideoOptions = { motionBlur?: boolean; music?: "beat" | "none" };
+export type VideoStyle = "papan" | "struk" | "swiss" | "riso" | "editorial" | "buku" | "retro" | "kolase" | "data" | "bauhaus";
+
+export const VIDEO_STYLES: { key: VideoStyle; label: string; desc: string }[] = [
+  { key: "papan", label: "Papan", desc: "Satu papan Brand Kit, kamera pindah antar shot, foto melompat" },
+  { key: "struk", label: "Struk kasir", desc: "Struk thermal keluar dari printer, coretan pulpen, stempel" },
+  { key: "swiss", label: "Swiss poster", desc: "Grid tegas, angka raksasa, judul kapital per ketuk" },
+  { key: "riso", label: "Risograph", desc: "2 tinta meleset, halftone, huruf condensed raksasa" },
+  { key: "editorial", label: "Editorial", desc: "Serif majalah, foto bingkai lengkung, ritme pelan" },
+  { key: "buku", label: "Buku tulis", desc: "Tulisan tangan di kertas bergaris, stabilo, sticky note" },
+  { key: "retro", label: "Retro 70-an", desc: "Sunburst, pelangi, huruf groovy, lencana gerigi" },
+  { key: "kolase", label: "Kolase tempel", desc: "Huruf guntingan, selotip, polaroid, stiker" },
+  { key: "data", label: "Data signal", desc: "Gelap, angka raksasa dihitung, grafik tumbuh, batang harga" },
+  { key: "bauhaus", label: "Bauhaus", desc: "Bentuk dasar berpindah tiap ketuk, foto dalam lingkaran" },
+];
+export const isVideoStyle = (v: unknown): v is VideoStyle => VIDEO_STYLES.some((s) => s.key === v);
+
+/** Gaya video yang cocok per jenis konten (dipakai sebagai saran awal). */
+export const STYLE_FOR: Record<ContentType, VideoStyle> = {
+  berita: "data",
+  tutorial: "buku",
+  review: "editorial",
+  tips: "swiss",
+  opini: "editorial",
+  promo: "kolase",
+  rekomendasi: "retro",
+  perbandingan: "data",
+};
+
+export type VideoLayout = "full" | "pip" | "split-top" | "split-bottom";
+export type MediaFile = { file: string; name: string; seconds: number };
+
+export type VideoOptions = {
+  motionBlur?: boolean;
+  music?: "beat" | "none";
+  style?: VideoStyle;
+  /** brand = aksen Brand Kit, style = warna asli gaya */
+  colors?: "brand" | "style";
+  layout?: VideoLayout;
+  pipCorner?: "kanan-bawah" | "kiri-bawah" | "kanan-atas" | "kiri-atas";
+  pipShape?: "bulat" | "kotak";
+  /** voice over (file di MEDIA_DIR) */
+  vo?: MediaFile | null;
+  /** video sendiri (talking head) */
+  cam?: (MediaFile & { useAudio?: boolean }) | null;
+};
 
 export const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
