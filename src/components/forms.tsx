@@ -11,8 +11,19 @@ export function ActionForm({
   className?: string;
   resetOnSuccess?: boolean;
 }) {
-  const [state, run, pending] = useActionState(action, {});
   const ref = useRef<HTMLFormElement>(null);
+  // Guard sinkron anti double-submit: cegah action tereksekusi 2x
+  // saat tombol diklik cepat sebelum React sempat re-render (pending=true).
+  const submittingRef = useRef(false);
+  const [state, run, pending] = useActionState(async (s: ActionState, f: FormData) => {
+    if (submittingRef.current) return s;
+    submittingRef.current = true;
+    try {
+      return await action(s, f);
+    } finally {
+      submittingRef.current = false;
+    }
+  }, {});
   useEffect(() => {
     if (state.ok && resetOnSuccess) ref.current?.reset();
   }, [state, resetOnSuccess]);

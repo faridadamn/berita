@@ -27,6 +27,17 @@ export async function createContent(_: ActionState, f: FormData): Promise<Action
   if (!url && !idea) return { ok: false, message: "Isi link atau tulis idenya" };
   if (url && !/^https?:\/\/\S+$/.test(url)) return { ok: false, message: "Link harus diawali https://" };
 
+  // Idempotency: 1x submit = 1x draft. Kalau key ini sudah pernah bikin post
+  // (mis. double-klik lolos guard client), langsung buka draft yang sudah ada.
+  const idempotencyKey = String(f.get("idempotencyKey") ?? "").trim().slice(0, 64) || null;
+  if (idempotencyKey) {
+    const [dup] = await db()
+      .select({ id: schema.posts.id })
+      .from(schema.posts)
+      .where(eq(schema.posts.idempotencyKey, idempotencyKey));
+    if (dup) redirect(`/review/${dup.id}`);
+  }
+
   let topicId: number;
   if (url) {
     const [existing] = await db().select({ id: schema.topics.id }).from(schema.topics).where(eq(schema.topics.url, url));
@@ -75,8 +86,17 @@ export async function createContent(_: ActionState, f: FormData): Promise<Action
 
   let postId: number;
   try {
-    postId = await draftTopic(topicId, { format, notes: notes || undefined });
+    postId = await draftTopic(topicId, { format, notes: notes || undefined, idempotencyKey });
   } catch (e) {
+    // Race: request kembar lolos cek di atas bersamaan — unique constraint
+    // menolak insert kedua; arahkan ke draft yang sudah jadi.
+    if (idempotencyKey && /idempotency_key/.test(String((e as Error).message))) {
+      const [dup] = await db()
+        .select({ id: schema.posts.id })
+        .from(schema.posts)
+        .where(eq(schema.posts.idempotencyKey, idempotencyKey));
+      if (dup) redirect(`/review/${dup.id}`);
+    }
     await db().update(schema.topics).set({ status: "failed", scoreReason: `Gagal ditulis: ${(e as Error).message}`.slice(0, 500) }).where(eq(schema.topics.id, topicId));
     return { ok: false, message: `Gagal menulis draft: ${(e as Error).message}. Detail di halaman Log.` };
   }

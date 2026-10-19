@@ -1,15 +1,33 @@
 "use client";
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { Lightbulb, Link2, Sparkles } from "lucide-react";
 import { ActionForm } from "@/components/forms";
 import { createContent } from "@/app/actions/create";
 import { CONTENT_TYPES } from "@/lib/content";
 
+/** Tombol submit anti double-klik: langsung mati + tampil status saat AI menulis. */
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending} className="btn btn-primary disabled:opacity-60">
+      <Sparkles size={13} /> {pending ? "Menulis draft\u2026" : "Tulis draft"}
+    </button>
+  );
+}
+
 export function CreateForm() {
   const [mode, setMode] = useState<"link" | "idea">("link");
   const [format, setFormat] = useState("auto");
+  // Kunci unik per bukaan form: 1x submit = 1x draft (server menolak duplikat).
+  const [idemKey] = useState(() =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   return (
     <ActionForm action={createContent} className="space-y-5">
+      <input type="hidden" name="idempotencyKey" value={idemKey} />
       <div className="flex rounded-lg border border-line bg-panel-2 p-0.5 text-[13px]">
         {([["link", "Dari link", Link2], ["idea", "Dari ide", Lightbulb]] as const).map(([k, label, Icon]) => (
           <button key={k} type="button" onClick={() => setMode(k)} className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-2 ${mode === k ? "bg-panel text-fg shadow-sm" : "text-muted"}`}>
@@ -50,9 +68,7 @@ export function CreateForm() {
         <textarea name="notes" rows={3} className="input" placeholder="mis. fokus ke cara install di Windows; target pemula; bandingkan dengan tool X" />
       </label>
 
-      <button className="btn btn-primary">
-        <Sparkles size={13} /> Tulis draft
-      </button>
+      <SubmitButton />
       <p className="text-[11px] text-dim">Butuh ±20–60 detik. Setelah selesai kamu langsung dibawa ke halaman review.</p>
     </ActionForm>
   );

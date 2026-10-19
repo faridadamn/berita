@@ -254,12 +254,12 @@ export async function pickTemplate(format: ContentType, offset: number) {
   return rot[(Number(n) + offset) % rot.length];
 }
 
-export async function insertPost(values: WriteResult["values"], template: string) {
+export async function insertPost(values: WriteResult["values"], template: string, idempotencyKey?: string | null) {
   for (let attempts = 0; ; attempts++) {
     try {
       const [p] = await db()
         .insert(schema.posts)
-        .values({ ...values, template, shortCode: shortCode(), status: "review" } as typeof schema.posts.$inferInsert)
+        .values({ ...values, template, shortCode: shortCode(), status: "review", ...(idempotencyKey ? { idempotencyKey } : {}) } as typeof schema.posts.$inferInsert)
         .returning({ id: schema.posts.id });
       return p.id;
     } catch (e) {
@@ -269,7 +269,7 @@ export async function insertPost(values: WriteResult["values"], template: string
 }
 
 /** Satu topik → satu draft baru (dipakai halaman "Buat konten"). Mengembalikan id post. */
-export async function draftTopic(topicId: number, opts: { format?: ContentType; notes?: string } = {}) {
+export async function draftTopic(topicId: number, opts: { format?: ContentType; notes?: string; idempotencyKey?: string | null } = {}) {
   const [row] = await db()
     .select({ t: schema.topics, sourceName: schema.sources.name })
     .from(schema.topics)
@@ -279,7 +279,7 @@ export async function draftTopic(topicId: number, opts: { format?: ContentType; 
   const usage = new Usage();
   try {
     const r = await writeDraft(row.t, { sourceName: row.sourceName, usage, ...opts });
-    const id = await insertPost(r.values, await pickTemplate(r.format, 0));
+    const id = await insertPost(r.values, await pickTemplate(r.format, 0), opts.idempotencyKey);
     await db().update(schema.topics).set(r.topicPatch).where(eq(schema.topics.id, topicId));
     await logRun("copywriter", `Menulis ${r.format} dari "${row.t.title.slice(0, 80)}" (post #${id})`, { usage, detail: { postIds: [id], topicIds: [topicId] } });
     return id;

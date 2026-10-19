@@ -118,6 +118,8 @@ export const posts = pgTable("posts", {
   renderError: text("render_error"),
   status: postStatusEnum("status").notNull().default("review"),
   shortCode: varchar("short_code", { length: 16 }).notNull().unique(),
+  /** kunci idempotency: 1x klik "Tulis draft" = 1x post (cegah duplikat double-submit) */
+  idempotencyKey: varchar("idempotency_key", { length: 64 }).unique(),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   postedAt: timestamp("posted_at", { withTimezone: true }),
   igPermalink: text("ig_permalink"),

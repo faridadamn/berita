@@ -58,6 +58,7 @@ export async function samplePost(kit: BrandKit): Promise<PostForRender> {
     productIds: [],
     renderedAt: null,
     renderHash: null,
+    idempotencyKey: null,
     renderError: null,
     status: "review",
     shortCode: "contoh",
