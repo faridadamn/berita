@@ -166,6 +166,17 @@ Sambungkan akun di **Admin → Kanal** (panduan singkat ada di tiap kartu; krede
 - Post terjadwal diposting oleh penjadwal (`/api/cron`) — di luar jam kerja AI pun tetap jalan. Ketelitian waktu = interval cron (15 menit; set worker 5 menit kalau perlu lebih tepat).
 - Insights IG (views, reach, likes, saves, shares, comments) & Threads disinkron tiap jam untuk post 14 hari terakhir.
 
+## Bahan untuk Mesin Konten
+
+`GET /api/sumber/:id` (id angka atau kode shortlink) mengembalikan bahan satu post sebagai JSON: judul & link artikel asli, nama media, ringkasan asli dari feed, shortlink, dan teks yang sudah ditulis Studio. Dipakai Mesin Konten (`faridadamn/konten`, opsi `--studio <id>`) untuk menulis utas Threads / post LinkedIn bergaya cerita dari berita yang sama.
+
+- Wajib header `Authorization: Bearer <SUMBER_TOKEN>`. `SUMBER_TOKEN` kosong = endpoint mati (503). Minimal 16 karakter.
+- Token terpisah dari `CRON_SECRET`: hanya bisa membaca, tidak bisa memicu agen. Tidak mencatat klik.
+
+```bash
+curl -H "Authorization: Bearer $SUMBER_TOKEN" https://studio.domainkamu.com/api/sumber/123
+```
+
 ## Log & error
 
 Halaman **Log** mencatat semua aktivitas agen, posting, dan error sistem (badge merah di menu = jumlah error 24 jam). Klik baris untuk melihat provider/model, token, biaya, **jawaban mentah AI** yang gagal diproses, topik/post terkait, stack trace, dan saran perbaikan.
